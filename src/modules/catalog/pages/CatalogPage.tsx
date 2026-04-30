@@ -161,6 +161,62 @@ export function CatalogPage() {
     }
   }, [billableItems, packages, rateCardForm.target_type, skus])
 
+  function clearCoreData() {
+    setSkus([])
+    setPackages([])
+    setBillableItems([])
+    setRateCards([])
+    setAssets([])
+  }
+
+  function clearPolicyData() {
+    setAllowancePolicies([])
+    setQuotaPolicies([])
+    setCapabilityPolicies([])
+  }
+
+  function reportSectionLoadFailure(section: string, err: unknown) {
+    pushToast({
+      tone: 'error',
+      title: t('catalog.toast.loadWorkspaceFailed'),
+      description: `${section}: ${err instanceof Error ? err.message : t('catalog.toast.loadWorkspaceFailed')}`,
+    })
+  }
+
+  async function loadPolicyData(productCode: string) {
+    if (!productCode) {
+      clearPolicyData()
+      return
+    }
+
+    const [allowanceResp, quotaPolicyResp, capabilityPolicyResp] = await Promise.allSettled([
+      platformClient.allowancePolicies(productCode),
+      platformClient.quotaPolicies(productCode),
+      platformClient.capabilityPolicies(productCode),
+    ])
+
+    if (allowanceResp.status === 'fulfilled') {
+      setAllowancePolicies(allowanceResp.value.items)
+    } else {
+      setAllowancePolicies([])
+      reportSectionLoadFailure('Allowance Policy', allowanceResp.reason)
+    }
+
+    if (quotaPolicyResp.status === 'fulfilled') {
+      setQuotaPolicies(quotaPolicyResp.value.items)
+    } else {
+      setQuotaPolicies([])
+      reportSectionLoadFailure('Quota Policy', quotaPolicyResp.reason)
+    }
+
+    if (capabilityPolicyResp.status === 'fulfilled') {
+      setCapabilityPolicies(capabilityPolicyResp.value.items)
+    } else {
+      setCapabilityPolicies([])
+      reportSectionLoadFailure('Capability Policy', capabilityPolicyResp.reason)
+    }
+  }
+
   async function loadWorkspace(nextProductId?: string) {
     const currentProductId = nextProductId ?? selectedProductId
     setLoading(true)
@@ -173,36 +229,57 @@ export function CatalogPage() {
         setSelectedProductId(resolvedProductId)
       }
       if (!resolvedProductId) {
-        setSkus([])
-        setPackages([])
-        setBillableItems([])
-        setRateCards([])
-        setAssets([])
-        setAllowancePolicies([])
-        setQuotaPolicies([])
-        setCapabilityPolicies([])
+        clearCoreData()
+        clearPolicyData()
         return
       }
       const currentProduct = nextProducts.find(item => item.id === resolvedProductId)
       const currentProductCode = currentProduct?.code ?? ''
-      const [skuResp, packageResp, billableResp, rateCardResp, assetResp, policyResp, quotaPolicyResp, capabilityPolicyResp] = await Promise.all([
+
+      const [skuResp, packageResp, billableResp, rateCardResp, assetResp] = await Promise.allSettled([
         platformClient.catalogSkus(resolvedProductId),
         platformClient.catalogPackages(resolvedProductId),
         platformClient.catalogBillableItems(resolvedProductId),
         platformClient.catalogRateCards(resolvedProductId),
         platformClient.walletAssets(currentProductCode),
-        platformClient.allowancePolicies(currentProductCode),
-        platformClient.quotaPolicies(currentProductCode),
-        platformClient.capabilityPolicies(currentProductCode),
       ])
-      setSkus(skuResp.items)
-      setPackages(packageResp.items)
-      setBillableItems(billableResp.items)
-      setRateCards(rateCardResp.items)
-      setAssets(assetResp.items)
-      setAllowancePolicies(policyResp.items)
-      setQuotaPolicies(quotaPolicyResp.items)
-      setCapabilityPolicies(capabilityPolicyResp.items)
+
+      if (skuResp.status === 'fulfilled') {
+        setSkus(skuResp.value.items)
+      } else {
+        setSkus([])
+        reportSectionLoadFailure('SKU', skuResp.reason)
+      }
+
+      if (packageResp.status === 'fulfilled') {
+        setPackages(packageResp.value.items)
+      } else {
+        setPackages([])
+        reportSectionLoadFailure('Package', packageResp.reason)
+      }
+
+      if (billableResp.status === 'fulfilled') {
+        setBillableItems(billableResp.value.items)
+      } else {
+        setBillableItems([])
+        reportSectionLoadFailure('Billable Item', billableResp.reason)
+      }
+
+      if (rateCardResp.status === 'fulfilled') {
+        setRateCards(rateCardResp.value.items)
+      } else {
+        setRateCards([])
+        reportSectionLoadFailure('Rate Card', rateCardResp.reason)
+      }
+
+      if (assetResp.status === 'fulfilled') {
+        setAssets(assetResp.value.items)
+      } else {
+        setAssets([])
+        reportSectionLoadFailure('Asset Definition', assetResp.reason)
+      }
+
+      void loadPolicyData(currentProductCode)
     } catch (err) {
       pushToast({ tone: 'error', title: t('catalog.toast.loadWorkspaceFailed'), description: err instanceof Error ? err.message : t('catalog.toast.loadWorkspaceFailed') })
     } finally {

@@ -34,6 +34,15 @@ npm run dev
 npm run build
 ```
 
+## 部署
+
+- `deploy/Dockerfile`: 生产镜像，多阶段构建并使用 Nginx 承载静态产物
+- `deploy/Dockerfile.dev`: 使用本地已构建 `dist/` 的轻量开发镜像
+- `deploy/platform-console-nginx.conf`: SPA 路由回退与静态缓存配置
+- `deploy/entrypoint.sh`: 容器启动时注入 `VITE_*` 运行时环境变量
+- `deploy/docker-compose.yml`: `dev/prod` 两套服务编排样例
+- `deploy/deploy.sh`: 参考 `v-ecommerce-frontend` 的远端部署脚本，支持 `dev|prod|promote|rollback`
+
 ## 当前约定
 
 - 面向用户可见的商业状态、资产名、事件名、价格口径统一通过前端 i18n helper 映射，不直接裸露底层 code。

@@ -1,24 +1,86 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Plus, RefreshCcw, UserRound, Users } from 'lucide-react'
+import { Plus, RefreshCcw, UserRound, Users, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { motion, AnimatePresence } from 'framer-motion'
 
 import { useSessionStore } from '@/app/store/sessionStore'
 import { useShellStore } from '@/app/store/shellStore'
 import { useToastStore } from '@/app/store/toastStore'
 import { platformClient } from '@/shared/api/platformClient'
 import { PageHeader } from '@/shared/ui/PageHeader'
-import { SectionCard } from '@/shared/ui/SectionCard'
-import { EntityModal } from '@/shared/ui/EntityModal'
 import type { OrganizationLite, OrganizationMemberRecord, PlatformOrganizationRecord, PlatformUserDirectoryRecord } from '@/shared/types/auth'
 
-const secondaryButtonClass = 'inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:border-[var(--border-strong)]'
+const secondaryButtonClass = 'inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-white/20'
 const primaryButtonClass = 'inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-950 transition-colors hover:bg-slate-200'
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
+}
 
 function tone(roleOrStatus: string) {
   const normalized = roleOrStatus.toLowerCase()
   if (normalized.includes('owner')) return 'border-sky-500/20 bg-sky-500/10 text-sky-300'
   if (normalized.includes('admin') || normalized.includes('active')) return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-  return 'border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-muted)]'
+  return 'border-white/10 bg-white/[0.02] text-slate-400'
+}
+
+function InlineModal({ open, title, description, onClose, children, footer }: { open: boolean; title: string; description?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a12] shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+              <div className="min-w-0">
+                <h3 className="text-lg font-semibold text-slate-200">{title}</h3>
+                {description ? <p className="mt-1.5 text-sm text-slate-400">{description}</p> : null}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-slate-950 text-slate-400 transition-colors hover:border-white/20 hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="overflow-y-auto px-6 py-5">{children}</div>
+            {footer ? <div className="border-t border-white/10 px-6 py-4">{footer}</div> : null}
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  )
+}
+
+function InlineSection({ title, description, children, className = '' }: { title: string; description: string; children: ReactNode; className?: string }) {
+  return (
+    <motion.section variants={itemVariants} className={`rounded-xl border border-white/10 bg-slate-950 p-6 transition-colors hover:border-white/20 ${className}`}>
+      <div className="mb-6">
+        <h2 className="text-base font-semibold tracking-tight text-slate-200">{title}</h2>
+        <p className="mt-1.5 text-sm text-slate-400">{description}</p>
+      </div>
+      {children}
+    </motion.section>
+  )
 }
 
 export function OrganizationsPage() {
@@ -201,39 +263,37 @@ export function OrganizationsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title={t('organizations.title')}
-        description="组织、用户和组织成员关系的一体化治理面。平台运营默认从组织图谱进入，再下钻成员与用户。"
-        actions={opsScope === 'global' && canManageGlobal ? (
-          <>
-            <button type="button" className={secondaryButtonClass} onClick={() => openUserModal()}>
-              <Plus className="h-4 w-4" />
-              新建用户
-            </button>
-            <button type="button" className={primaryButtonClass} onClick={() => openOrgModal()}>
-              <Plus className="h-4 w-4" />
-              新建组织
-            </button>
-          </>
-        ) : undefined}
-      />
+    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+      <motion.div variants={itemVariants}>
+        <PageHeader
+          title={t('organizations.title')}
+          description="组织、用户和组织成员关系的一体化治理面。平台运营默认从组织图谱进入，再下钻成员与用户。"
+          actions={opsScope === 'global' && canManageGlobal ? (
+            <>
+              <button type="button" className={secondaryButtonClass} onClick={() => openUserModal()}>
+                <Plus className="h-4 w-4" />
+                新建用户
+              </button>
+              <button type="button" className={primaryButtonClass} onClick={() => openOrgModal()}>
+                <Plus className="h-4 w-4" />
+                新建组织
+              </button>
+            </>
+          ) : undefined}
+        />
+      </motion.div>
 
-      {error ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">{error}</div> : null}
+      {error ? <motion.div variants={itemVariants} className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">{error}</motion.div> : null}
 
-      <SectionCard title="Current operator" description="当前平台操作员和工作区状态。">
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-muted)]">
-                <UserRound className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-base font-semibold text-[var(--text)]">{currentUser?.full_name || 'Unknown operator'}</p>
-                <p className="mt-1 text-sm text-[var(--text-muted)] break-all">{currentUser?.email || '-'}</p>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+      <motion.div variants={itemVariants} className="flex flex-wrap gap-8 px-6 py-4 border-y border-white/5 bg-[#0a0a12]">
+        <div className="flex items-center gap-4 min-w-[200px]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.02] text-slate-400">
+            <UserRound className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-slate-200">{currentUser?.full_name || 'Unknown operator'}</p>
+            <p className="mt-1 text-sm text-slate-400 break-all">{currentUser?.email || '-'}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
               <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${tone(currentUser?.org_role || '')}`}>
                 {currentUser?.org_role || 'no org role'}
               </span>
@@ -242,38 +302,44 @@ export function OrganizationsPage() {
               </span>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {[
-              ['Scope', opsScope],
-              ['Current workspace', activeWorkspace?.name || currentOrgId || '-'],
-              ['Accessible orgs', String(workspaceOrganizations.length)],
-              ['Platform admin', canManageGlobal ? 'yes' : 'no'],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-5">
-                <p className="text-xs uppercase tracking-wider font-medium text-[var(--text-soft)]">{label}</p>
-                <p className="mt-2 text-sm font-medium text-[var(--text)] break-all">{value}</p>
-              </div>
-            ))}
+        </div>
+        
+        <div className="flex flex-wrap gap-8 items-center border-l border-white/5 pl-8">
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-wider font-medium text-slate-500">Scope</span>
+            <span className="mt-1 text-sm font-medium text-slate-200 break-all">{opsScope}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-wider font-medium text-slate-500">Current workspace</span>
+            <span className="mt-1 text-sm font-medium text-slate-200 break-all">{activeWorkspace?.name || currentOrgId || '-'}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-wider font-medium text-slate-500">Accessible orgs</span>
+            <span className="mt-1 text-sm font-medium text-slate-200 break-all">{workspaceOrganizations.length}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-wider font-medium text-slate-500">Platform admin</span>
+            <span className="mt-1 text-sm font-medium text-slate-200 break-all">{canManageGlobal ? 'yes' : 'no'}</span>
           </div>
         </div>
-      </SectionCard>
+      </motion.div>
 
       {opsScope !== 'global' ? (
-        <SectionCard title="Global governance required" description="全量、任意、非快照的治理操作放在平台全局作用域下。">
-          <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+        <InlineSection title="Global governance required" description="全量、任意、非快照的治理操作放在平台全局作用域下。">
+          <div className="rounded-xl border border-dashed border-white/20 bg-slate-950 px-4 py-8 text-center text-sm text-slate-400">
             切换到顶栏 `全局` 作用域后，可执行组织、用户、成员关系的完整 CRUD。当前 `工作区` 只保留上下文切换与执行视图。
           </div>
-        </SectionCard>
+        </InlineSection>
       ) : null}
 
       {opsScope === 'global' ? (
         <>
-          {globalError ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">{globalError}</div> : null}
+          {globalError ? <motion.div variants={itemVariants} className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">{globalError}</motion.div> : null}
 
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
-            <SectionCard title="Organization graph" description="以组织为主维度管理全量组织，并在右侧直接维护成员关系。">
+          <div className="grid gap-6 xl:grid-cols-1">
+            <InlineSection title="Organization graph" description="以组织为主维度管理全量组织，并在右侧直接维护成员关系。">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-sm text-[var(--text-muted)]">当前组织数: {globalLoading ? '...' : platformOrganizations.length}</div>
+                <div className="text-sm text-slate-400">当前组织数: {globalLoading ? '...' : platformOrganizations.length}</div>
                 <button type="button" className={secondaryButtonClass} onClick={() => openOrgModal()}>
                   <Plus className="h-4 w-4" />
                   添加组织
@@ -286,8 +352,8 @@ export function OrganizationsPage() {
                   selected: selectedOrgId === item.id,
                   cells: [
                     <div key="org">
-                      <div className="font-medium text-[var(--text)]">{item.name}</div>
-                      <div className="mt-1 text-xs font-mono text-[var(--text-soft)]">{item.id}</div>
+                      <div className="font-medium text-slate-200">{item.name}</div>
+                      <div className="mt-1 text-xs font-mono text-slate-500">{item.id}</div>
                     </div>,
                     item.owner_name || item.owner_email || '-',
                     `${item.plan_id || '-'} / ${item.member_count}`,
@@ -302,13 +368,13 @@ export function OrganizationsPage() {
                 }))}
                 emptyMessage={globalLoading ? 'Loading organizations...' : 'No organizations returned.'}
               />
-            </SectionCard>
+            </InlineSection>
 
-            <SectionCard title="Organization members" description={selectedOrganization ? `维护 ${selectedOrganization.name} 的成员关系与角色。` : '先在左侧选择一个组织。'}>
+            <InlineSection title="Organization members" description={selectedOrganization ? `维护 ${selectedOrganization.name} 的成员关系与角色。` : '先在左侧选择一个组织。'}>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text)]">{selectedOrganization?.name || 'No organization selected'}</p>
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">成员关系是二级结构，不再把用户平铺在组织外部。</p>
+                  <p className="text-sm font-semibold text-slate-200">{selectedOrganization?.name || 'No organization selected'}</p>
+                  <p className="mt-1 text-sm text-slate-400">成员关系是二级结构，不再把用户平铺在组织外部。</p>
                 </div>
                 <button type="button" className={secondaryButtonClass} disabled={!selectedOrgId} onClick={() => openMemberModal()}>
                   <Plus className="h-4 w-4" />
@@ -321,8 +387,8 @@ export function OrganizationsPage() {
                   key: item.user_id,
                   cells: [
                     <div key="user">
-                      <div className="font-medium text-[var(--text)]">{item.user_full_name || item.user_email}</div>
-                      <div className="mt-1 text-xs text-[var(--text-soft)]">{item.user_email}</div>
+                      <div className="font-medium text-slate-200">{item.user_full_name || item.user_email}</div>
+                      <div className="mt-1 text-xs text-slate-500">{item.user_email}</div>
                     </div>,
                     item.role,
                     item.status,
@@ -334,13 +400,13 @@ export function OrganizationsPage() {
                 }))}
                 emptyMessage={membersLoading ? 'Loading members...' : 'No members returned for selected organization.'}
               />
-            </SectionCard>
+            </InlineSection>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
-            <SectionCard title="User graph" description="全量用户目录支持直接增删改查，但关系展示通过右侧归属组织图谱展开。">
+          <div className="grid gap-6 xl:grid-cols-1">
+            <InlineSection title="User graph" description="全量用户目录支持直接增删改查，但关系展示通过右侧归属组织图谱展开。">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-sm text-[var(--text-muted)]">当前用户数: {globalLoading ? '...' : platformUsers.length}</div>
+                <div className="text-sm text-slate-400">当前用户数: {globalLoading ? '...' : platformUsers.length}</div>
                 <button type="button" className={secondaryButtonClass} onClick={() => openUserModal()}>
                   <Plus className="h-4 w-4" />
                   添加用户
@@ -353,8 +419,8 @@ export function OrganizationsPage() {
                   selected: selectedUserId === item.id,
                   cells: [
                     <div key="user">
-                      <div className="font-medium text-[var(--text)]">{item.full_name || item.email}</div>
-                      <div className="mt-1 text-xs text-[var(--text-soft)]">{item.email}</div>
+                      <div className="font-medium text-slate-200">{item.full_name || item.email}</div>
+                      <div className="mt-1 text-xs text-slate-500">{item.email}</div>
                     </div>,
                     item.current_org_name || item.current_org_id || '-',
                     String(item.organization_count),
@@ -366,19 +432,19 @@ export function OrganizationsPage() {
                 }))}
                 emptyMessage={globalLoading ? 'Loading users...' : 'No users returned.'}
               />
-            </SectionCard>
+            </InlineSection>
 
-            <SectionCard title="Selected user relations" description="用户详情通过组织归属展开，避免把用户信息平铺成无关系列表。">
+            <InlineSection title="Selected user relations" description="用户详情通过组织归属展开，避免把用户信息平铺成无关系列表。">
               {selectedUser ? (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-5">
+                  <div className="rounded-xl border border-white/10 bg-slate-950 p-5">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-full border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[var(--text-muted)]">
+                      <div className="rounded-full border border-white/10 bg-white/[0.02] p-3 text-slate-400">
                         <Users className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[var(--text)]">{selectedUser.full_name || selectedUser.email}</p>
-                        <p className="mt-1 text-sm text-[var(--text-muted)] break-all">{selectedUser.email}</p>
+                        <p className="text-sm font-semibold text-slate-200">{selectedUser.full_name || selectedUser.email}</p>
+                        <p className="mt-1 text-sm text-slate-400 break-all">{selectedUser.email}</p>
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -386,43 +452,43 @@ export function OrganizationsPage() {
                       {selectedUser.is_platform_admin ? <span className="inline-flex items-center rounded-md border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-300">platform admin</span> : null}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-5">
-                    <p className="text-sm font-semibold text-[var(--text)]">Organization memberships</p>
+                  <div className="rounded-xl border border-white/10 bg-slate-950 p-5">
+                    <p className="text-sm font-semibold text-slate-200">Organization memberships</p>
                     <div className="mt-4 space-y-3">
                       {selectedUser.organizations.length ? selectedUser.organizations.map(item => (
-                        <div key={`${selectedUser.id}-${item.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] px-4 py-3">
+                        <div key={`${selectedUser.id}-${item.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-[var(--text)]">{item.name}</p>
-                            <p className="mt-1 text-xs font-mono text-[var(--text-soft)]">{item.id}</p>
+                            <p className="text-sm font-medium text-slate-200">{item.name}</p>
+                            <p className="mt-1 text-xs font-mono text-slate-500">{item.id}</p>
                           </div>
                           <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${tone(item.role)}`}>{item.role}</span>
                         </div>
                       )) : (
-                        <p className="text-sm text-[var(--text-muted)]">No organization memberships returned.</p>
+                        <p className="text-sm text-slate-400">No organization memberships returned.</p>
                       )}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                <div className="rounded-xl border border-dashed border-white/20 bg-slate-950 px-4 py-8 text-center text-sm text-slate-400">
                   在左侧用户列表中选择一个用户，查看其组织归属和治理关系。
                 </div>
               )}
-            </SectionCard>
+            </InlineSection>
           </div>
         </>
       ) : null}
 
-      <SectionCard title="Workspace switching" description="工作区切换仍保留在治理页内，方便从平台全局视角下钻到具体组织执行。">
+      <InlineSection title="Workspace switching" description="工作区切换仍保留在治理页内，方便从平台全局视角下钻到具体组织执行。">
         <div className="grid gap-3">
           {workspaceOrganizations.map(item => {
             const isActive = item.id === currentOrgId
             const isSwitching = switchingOrgId === item.id
             return (
-              <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-slate-950 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text)]">{item.name}</p>
-                  <p className="mt-1 text-xs font-mono text-[var(--text-soft)]">{item.id}</p>
+                  <p className="text-sm font-semibold text-slate-200">{item.name}</p>
+                  <p className="mt-1 text-xs font-mono text-slate-500">{item.id}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${tone(item.role)}`}>{item.role}</span>
@@ -439,14 +505,14 @@ export function OrganizationsPage() {
             )
           })}
           {!workspaceOrganizations.length ? (
-            <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+            <div className="rounded-xl border border-dashed border-white/20 bg-slate-950 px-4 py-8 text-center text-sm text-slate-400">
               {loading ? 'Loading workspaces...' : 'No accessible organizations returned.'}
             </div>
           ) : null}
         </div>
-      </SectionCard>
+      </InlineSection>
 
-      <EntityModal
+      <InlineModal
         open={orgModalOpen}
         onClose={() => setOrgModalOpen(false)}
         title={editingOrg ? '编辑组织' : '新建组织'}
@@ -461,15 +527,15 @@ export function OrganizationsPage() {
         )}
       >
         <div className="grid gap-4">
-          <FormField label="Name"><input value={orgForm.name} onChange={event => setOrgForm(current => ({ ...current, name: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Plan ID"><input value={orgForm.plan_id} onChange={event => setOrgForm(current => ({ ...current, plan_id: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Billing email"><input value={orgForm.billing_email} onChange={event => setOrgForm(current => ({ ...current, billing_email: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Status"><input value={orgForm.status} onChange={event => setOrgForm(current => ({ ...current, status: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Owner user ID"><input value={orgForm.owner_id} onChange={event => setOrgForm(current => ({ ...current, owner_id: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
+          <FormField label="Name"><input value={orgForm.name} onChange={event => setOrgForm(current => ({ ...current, name: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Plan ID"><input value={orgForm.plan_id} onChange={event => setOrgForm(current => ({ ...current, plan_id: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Billing email"><input value={orgForm.billing_email} onChange={event => setOrgForm(current => ({ ...current, billing_email: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Status"><input value={orgForm.status} onChange={event => setOrgForm(current => ({ ...current, status: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Owner user ID"><input value={orgForm.owner_id} onChange={event => setOrgForm(current => ({ ...current, owner_id: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
         </div>
-      </EntityModal>
+      </InlineModal>
 
-      <EntityModal
+      <InlineModal
         open={userModalOpen}
         onClose={() => setUserModalOpen(false)}
         title={editingUser ? '编辑用户' : '新建用户'}
@@ -485,26 +551,26 @@ export function OrganizationsPage() {
         )}
       >
         <div className="grid gap-4">
-          <FormField label="Email"><input value={userForm.email} onChange={event => setUserForm(current => ({ ...current, email: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Full name"><input value={userForm.full_name} onChange={event => setUserForm(current => ({ ...current, full_name: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Password"><input type="password" value={userForm.password} onChange={event => setUserForm(current => ({ ...current, password: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Avatar URL"><input value={userForm.avatar_url} onChange={event => setUserForm(current => ({ ...current, avatar_url: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
+          <FormField label="Email"><input value={userForm.email} onChange={event => setUserForm(current => ({ ...current, email: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Full name"><input value={userForm.full_name} onChange={event => setUserForm(current => ({ ...current, full_name: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Password"><input type="password" value={userForm.password} onChange={event => setUserForm(current => ({ ...current, password: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Avatar URL"><input value={userForm.avatar_url} onChange={event => setUserForm(current => ({ ...current, avatar_url: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Role"><input value={userForm.role} onChange={event => setUserForm(current => ({ ...current, role: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-            <FormField label="Status"><input value={userForm.status} onChange={event => setUserForm(current => ({ ...current, status: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
+            <FormField label="Role"><input value={userForm.role} onChange={event => setUserForm(current => ({ ...current, role: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+            <FormField label="Status"><input value={userForm.status} onChange={event => setUserForm(current => ({ ...current, status: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Current org ID"><input value={userForm.current_org_id} onChange={event => setUserForm(current => ({ ...current, current_org_id: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-            <FormField label="Last active org ID"><input value={userForm.last_active_org_id} onChange={event => setUserForm(current => ({ ...current, last_active_org_id: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
+            <FormField label="Current org ID"><input value={userForm.current_org_id} onChange={event => setUserForm(current => ({ ...current, current_org_id: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+            <FormField label="Last active org ID"><input value={userForm.last_active_org_id} onChange={event => setUserForm(current => ({ ...current, last_active_org_id: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
           </div>
-          <label className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-sm text-[var(--text)]">
+          <label className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200">
             <input type="checkbox" checked={userForm.is_platform_admin} onChange={event => setUserForm(current => ({ ...current, is_platform_admin: event.target.checked }))} />
             Platform admin
           </label>
         </div>
-      </EntityModal>
+      </InlineModal>
 
-      <EntityModal
+      <InlineModal
         open={memberModalOpen}
         onClose={() => setMemberModalOpen(false)}
         title={editingMember ? '编辑组织成员' : '添加组织成员'}
@@ -526,7 +592,7 @@ export function OrganizationsPage() {
               value={memberForm.user_id}
               disabled={Boolean(editingMember)}
               onChange={event => setMemberForm(current => ({ ...current, user_id: event.target.value }))}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
+              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200"
             >
               <option value="">选择用户</option>
               {platformUsers.map(item => (
@@ -534,11 +600,11 @@ export function OrganizationsPage() {
               ))}
             </select>
           </FormField>
-          <FormField label="Role"><input value={memberForm.role} onChange={event => setMemberForm(current => ({ ...current, role: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
-          <FormField label="Status"><input value={memberForm.status} onChange={event => setMemberForm(current => ({ ...current, status: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" /></FormField>
+          <FormField label="Role"><input value={memberForm.role} onChange={event => setMemberForm(current => ({ ...current, role: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
+          <FormField label="Status"><input value={memberForm.status} onChange={event => setMemberForm(current => ({ ...current, status: event.target.value }))} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200" /></FormField>
         </div>
-      </EntityModal>
-    </div>
+      </InlineModal>
+    </motion.div>
   )
 }
 
@@ -558,38 +624,69 @@ function DataTable({
   }>
   emptyMessage: string
 }) {
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
+  const totalPages = Math.ceil(rows.length / pageSize)
+  const paginatedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--bg)]">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="border-b border-[var(--border)] bg-[var(--bg-muted)]">
+    <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#0a0a12]">
+      <table className="w-full min-w-max text-left text-sm">
+        <thead className="border-b border-white/10 bg-white/[0.02]">
           <tr>
             {columns.map(column => (
-              <th key={column} className="px-4 py-3 text-[var(--text-muted)]">{column}</th>
+              <th key={column} className="px-4 py-3 font-medium text-slate-400 whitespace-nowrap">{column}</th>
             ))}
-            <th className="px-4 py-3 text-right text-[var(--text-muted)]">Actions</th>
+            <th className="px-4 py-3 text-right font-medium text-slate-400 whitespace-nowrap">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[var(--border)]">
-          {rows.length ? rows.map(row => (
-            <tr key={row.key} className={row.selected ? 'bg-white/5' : undefined}>
+        <tbody className="divide-y divide-white/5">
+          {paginatedRows.length ? paginatedRows.map(row => (
+            <tr key={row.key} className={`group transition-colors hover:bg-white/[0.02] ${row.selected ? 'bg-white/5' : ''}`}>
               {row.cells.map((cell, index) => (
-                <td key={`${row.key}-${index}`} className="px-4 py-3 text-[var(--text)]">{cell}</td>
+                <td key={`${row.key}-${index}`} className="px-4 py-3 text-slate-200 truncate max-w-[200px] whitespace-nowrap">{cell}</td>
               ))}
-              <td className="px-4 py-3">
-                <div className="flex justify-end gap-2">
-                  {row.onSelect ? <button type="button" className={secondaryButtonClass} onClick={row.onSelect}>选择</button> : null}
-                  {row.onEdit ? <button type="button" className={secondaryButtonClass} onClick={row.onEdit}>编辑</button> : null}
-                  {row.onDelete ? <button type="button" className="inline-flex items-center justify-center rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/20" onClick={row.onDelete}>删除</button> : null}
+              <td className="px-4 py-3 text-right">
+                <div className="flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                  {row.onSelect ? <button type="button" className="inline-flex items-center justify-center rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-white/10" onClick={row.onSelect}>选择</button> : null}
+                  {row.onEdit ? <button type="button" className="inline-flex items-center justify-center rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-white/10" onClick={row.onEdit}>编辑</button> : null}
+                  {row.onDelete ? <button type="button" className="inline-flex items-center justify-center rounded-md border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/20" onClick={row.onDelete}>删除</button> : null}
                 </div>
               </td>
             </tr>
           )) : (
             <tr>
-              <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-[var(--text-muted)]">{emptyMessage}</td>
+              <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-slate-400">{emptyMessage}</td>
             </tr>
           )}
         </tbody>
       </table>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-white/5 bg-white/[0.01] px-4 py-3">
+          <div className="text-xs text-slate-500">
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, rows.length)} of {rows.length} entries
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="rounded-md border border-white/10 bg-transparent px-3 py-1 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent"
+            >
+              Previous
+            </button>
+            <div className="text-sm text-slate-400 px-2">
+              {currentPage} / {totalPages}
+            </div>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-md border border-white/10 bg-transparent px-3 py-1 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -597,7 +694,7 @@ function DataTable({
 function FormField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="grid gap-2">
-      <span className="text-sm font-medium text-[var(--text)]">{label}</span>
+      <span className="text-sm font-medium text-slate-200">{label}</span>
       {children}
     </label>
   )
@@ -611,3 +708,4 @@ function ModalFooter({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: (
     </div>
   )
 }
+
