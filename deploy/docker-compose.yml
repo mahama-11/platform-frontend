@@ -1,0 +1,52 @@
+services:
+  prod-platform-console-web:
+    image: ver/v-platform-console-frontend:${PROD_TAG:-1.0.0}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    container_name: v-platform-console-frontend
+    expose:
+      - "80"
+    environment:
+      - VITE_PLATFORM_API_BASE_URL=/api/v1
+      - VITE_MENU_API_BASE_URL=/menu-api/v1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - shared-network
+    volumes:
+      - ./platform-console-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+  dev-platform-console-web:
+    image: ver/v-platform-console-frontend:${DEV_TAG:-dev}
+    container_name: v-platform-console-frontend-dev
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      - VITE_PLATFORM_API_BASE_URL=/api/v1
+      - VITE_MENU_API_BASE_URL=/menu-api/v1
+    networks:
+      - shared-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  shared-network:
+    external: true
+    name: shared-network
