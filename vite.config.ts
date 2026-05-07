@@ -6,7 +6,7 @@ import { defineConfig, loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const platformProxyTarget = env.VITE_PLATFORM_PROXY_TARGET || 'http://localhost:8095'
+  const platformProxyTarget = env.VITE_PLATFORM_PROXY_TARGET || 'http://localhost:8195'
   const menuProxyTarget = env.VITE_MENU_PROXY_TARGET || 'http://localhost:8096'
 
   return {
