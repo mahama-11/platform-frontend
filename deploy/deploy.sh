@@ -1,5 +1,8 @@
 #!/bin/sh
 set -e
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PROJECT_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 CMD="$1"
 IMAGE_NAME="${IMAGE_NAME:-ver/v-platform-console-frontend}"
@@ -15,12 +18,13 @@ LOCAL_PROD_DIR="artifacts/prod"
 send_files() {
   OUT_FILE="$1"
   OUT_BASE="$(basename "$OUT_FILE")"
+  ssh -i "$SSH_KEY" "$REMOTE" "mkdir -p '$REMOTE_DIR' '$REMOTE_BASE'"
   scp -i "$SSH_KEY" "$OUT_FILE" "$REMOTE:$REMOTE_BASE/"
   scp -i "$SSH_KEY" -r deploy/docker-compose.yml "$REMOTE:$REMOTE_DIR/docker-compose.yml"
 }
 
 remote() {
-  ssh "$REMOTE" -i "$SSH_KEY" "$1"
+  ssh -i "$SSH_KEY" "$REMOTE" "$1"
 }
 
 local_image_id() {
