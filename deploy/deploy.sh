@@ -84,7 +84,11 @@ dev)
   OUT_BASE="$(basename "$OUT")"
   REMOTE_OUT="$REMOTE_BASE/$OUT_BASE"
 
-  npm ci
+  if [ "${SKIP_NPM_CI:-0}" = "1" ]; then
+    echo "Skipping npm ci because SKIP_NPM_CI=1"
+  else
+    npm ci
+  fi
   npm run build
 
   docker buildx build --platform linux/amd64 -f deploy/Dockerfile.dev -t "$IMG" .
