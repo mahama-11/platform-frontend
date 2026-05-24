@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AlertTriangle, CheckCircle2, Download, RefreshCcw, Upload } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Download, RefreshCcw, Upload } from 'lucide-react'
 
 import { useToastStore } from '@/app/store/toastStore'
 import { platformClient } from '@/shared/api/platformClient'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { SectionCard } from '@/shared/ui/SectionCard'
 import { EntityModal } from '@/shared/ui/EntityModal'
+import { TemplateOpsCsvImportModal, type UploadedBatchAssetCandidate } from './TemplateOpsCsvImportModal'
+import { TemplateOpsAssetModal } from './TemplateOpsAssetModal'
+import { Field } from './TemplateOpsFormField'
+import { buildAssetOptionKey, fileTitleFromName, readFileAsDataURL, suggestMissingAssetKey } from './templateOpsPageUtils'
 import type {
   BatchUploadAssetsResult,
   PreparedAssetImportResult,
@@ -13,21 +17,11 @@ import type {
   TemplateAssetBinding,
   TemplateOpsCatalogDetail,
   TemplateOpsCatalogItem,
-  TemplateOpsImportPreviewAssetCheck,
   TemplateOpsImportPreviewResult,
 } from '@/shared/types/platform'
 
 const secondaryButtonClass = 'inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:border-[var(--border-strong)]'
 const primaryButtonClass = 'inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-950 transition-colors hover:bg-slate-200'
-
-interface UploadedBatchAssetCandidate {
-  id: string
-  file_name: string
-  mime_type: string
-  payload: string
-  selected_key: string
-  suggested_key: string
-}
 
 export function TemplateOpsPage() {
   const pushToast = useToastStore(state => state.push)
@@ -653,277 +647,36 @@ export function TemplateOpsPage() {
         </div>
       </SectionCard>
 
-      <EntityModal
+      <TemplateOpsCsvImportModal
         open={csvOpen}
-        onClose={() => setCsvOpen(false)}
-        title="批量导入模板 CSV"
-        description="先加载或上传 CSV，再做预检。平台会提前告诉你哪些行可直接导入、哪些模板还缺示例图片，避免整批重来。"
-        footer={(
-          <div className="flex justify-end gap-3">
-            <button type="button" className={secondaryButtonClass} onClick={() => { setCsvOpen(false); resetCSVFlow() }}>取消</button>
-            <button
-              type="button"
-              className={primaryButtonClass}
-              disabled={!csvPreview?.summary.ready_to_import_count || csvImporting}
-              onClick={() => void importCSV()}
-            >
-              {csvImporting ? '导入中...' : '确认导入'}
-            </button>
-          </div>
-        )}
-      >
-        <div className="space-y-4">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-4 text-sm text-[var(--text-muted)]">
-            <p className="font-medium text-[var(--text)]">固定规则</p>
-            <ul className="mt-2 space-y-1">
-              <li>- 必填列：`product_code`、`template_id`、`name`</li>
-              <li>- 批量维护推荐用 Excel 编辑后另存为 CSV</li>
-              <li>- `platforms_json`、`tags_json`、`raw_json`、`detail_json` 必须是合法 JSON</li>
-              <li>- 已存在 `product_code + template_id` 会更新，不存在会创建</li>
-            </ul>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button type="button" className={secondaryButtonClass} onClick={() => void loadPreparedRealCSV()}>
-              加载真实样例 CSV
-            </button>
-            <button
-              type="button"
-              className={secondaryButtonClass}
-              disabled={!csvContent.trim() || csvPreviewLoading}
-              onClick={() => void previewCSVImport()}
-            >
-              {csvPreviewLoading ? '预检中...' : '执行预检'}
-            </button>
-          </div>
-          {preparedBundle ? (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-              <p className="font-medium text-white">已载入真实验证数据</p>
-              <p className="mt-2 text-emerald-100/80">
-                模板 {preparedBundle.template_count} 条，其中 Menu {preparedBundle.menu_template_count} / Ecommerce {preparedBundle.ecommerce_template_count}；
-                关联图片 {preparedBundle.asset_manifest_item_count} 张。
-              </p>
-              <p className="mt-1 text-xs text-emerald-100/70">
-                CSV: {preparedBundle.csv_path}
-              </p>
-              <p className="mt-1 text-xs text-emerald-100/70">
-                Asset manifest: {preparedBundle.asset_manifest_path}
-              </p>
-            </div>
-          ) : null}
-          <label className="inline-flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-sm text-[var(--text)]">
-            <input type="checkbox" checked={publishAfterImport} onChange={event => setPublishAfterImport(event.target.checked)} />
-            导入后自动发布
-          </label>
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={async event => {
-              const file = event.target.files?.[0]
-              if (!file) return
-              const text = await file.text()
-              setCsvContent(text)
-            }}
-            className="block w-full text-sm text-[var(--text-muted)]"
-          />
-          <textarea
-            value={csvContent}
-            onChange={event => {
-              setCsvContent(event.target.value)
-              setCsvPreview(null)
-            }}
-            placeholder="粘贴 CSV 内容，或先下载模板后用 Excel 编辑并上传..."
-            className="min-h-[360px] w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-3 font-mono text-sm text-[var(--text)]"
-          />
-          {csvPreview ? (
-            <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-4">
-              <div className="grid gap-3 md:grid-cols-4">
-                <PreviewStat label="总行数" value={String(csvPreview.summary.total_rows)} tone="default" />
-                <PreviewStat label="有效行" value={String(csvPreview.summary.valid_rows)} tone="success" />
-                <PreviewStat label="待补图" value={String(csvPreview.summary.missing_asset_count)} tone={csvPreview.summary.missing_asset_count ? 'warning' : 'success'} />
-                <PreviewStat label="可直接导入" value={String(csvPreview.summary.ready_to_import_count)} tone="default" />
-              </div>
-              {csvPreview.summary.missing_asset_count > 0 ? (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <div>
-                      <p className="font-medium text-white">发现缺失图片资源</p>
-                      <p className="mt-1 text-amber-100/80">
-                        平台已列出缺图明细。对于当前真实样例数据，可以直接一键导入缺失图片；导入后会自动重新预检，不需要重做整份 CSV。
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-3">
-                        {preparedBundle ? (
-                          <button
-                            type="button"
-                            className={secondaryButtonClass}
-                            disabled={preparedAssetImporting}
-                            onClick={() => void importPreparedAssets()}
-                          >
-                            {preparedAssetImporting ? '补图中...' : '一键导入真实样例图片'}
-                          </button>
-                        ) : null}
-                        <span className="inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-2 text-xs text-amber-100/80">
-                          任意自定义 CSV 已支持缺图识别；通用批量补传入口下一步继续补齐。
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                    <div>
-                      <p className="font-medium text-white">预检通过</p>
-                      <p className="mt-1 text-emerald-100/80">
-                        当前 CSV 已满足导入条件，可以直接执行正式导入。
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {missingPreviewAssets.length ? (
-                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-4">
-                  <p className="text-sm font-semibold text-[var(--text)]">缺图明细</p>
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">当前预检识别到的缺失图片会按 `source_ref` 列出。你可以直接上传一批图片，平台会先自动建议匹配，再允许手动调整后批量补齐。</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      className="block text-sm text-[var(--text-muted)]"
-                      onChange={event => void handleBatchAssetFilesSelected(event.target.files)}
-                    />
-                    <button
-                      type="button"
-                      className={secondaryButtonClass}
-                      disabled={!uploadedBatchAssets.some(item => item.selected_key) || batchAssetUploading}
-                      onClick={() => void uploadMatchedBatchAssets()}
-                    >
-                      {batchAssetUploading ? '批量补图中...' : '批量上传已匹配图片'}
-                    </button>
-                  </div>
-                  <div className="mt-3 max-h-48 overflow-auto rounded-lg border border-[var(--border)] bg-[var(--bg)]">
-                    <table className="w-full min-w-[640px] text-left text-sm">
-                      <thead className="border-b border-[var(--border)] bg-[var(--bg-muted)]">
-                        <tr>
-                          <th className="px-3 py-2 text-[var(--text-muted)]">业务域</th>
-                          <th className="px-3 py-2 text-[var(--text-muted)]">source_ref</th>
-                          <th className="px-3 py-2 text-[var(--text-muted)]">类别</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[var(--border)]">
-                        {missingPreviewAssets.slice(0, 20).map(asset => (
-                          <tr key={`${asset.product_code}-${asset.source_ref}`}>
-                            <td className="px-3 py-2 text-[var(--text)]">{asset.product_code}</td>
-                            <td className="px-3 py-2 text-[var(--text-muted)]">{asset.source_ref}</td>
-                            <td className="px-3 py-2 text-[var(--text-muted)]">{asset.category}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {uploadedBatchAssets.length ? (
-                    <div className="mt-4 space-y-3">
-                      <p className="text-sm font-semibold text-[var(--text)]">待上传图片匹配</p>
-                      <div className="max-h-64 overflow-auto rounded-lg border border-[var(--border)] bg-[var(--bg)]">
-                        <table className="w-full min-w-[760px] text-left text-sm">
-                          <thead className="border-b border-[var(--border)] bg-[var(--bg-muted)]">
-                            <tr>
-                              <th className="px-3 py-2 text-[var(--text-muted)]">文件</th>
-                              <th className="px-3 py-2 text-[var(--text-muted)]">建议匹配</th>
-                              <th className="px-3 py-2 text-[var(--text-muted)]">目标 source_ref</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[var(--border)]">
-                            {uploadedBatchAssets.map(item => (
-                              <tr key={item.id}>
-                                <td className="px-3 py-2 text-[var(--text)]">{item.file_name}</td>
-                                <td className="px-3 py-2 text-[var(--text-muted)]">
-                                  {item.suggested_key
-                                    ? (missingAssetOptions.find(option => option.key === item.suggested_key)?.label || 'Auto matched')
-                                    : '未自动命中'}
-                                </td>
-                                <td className="px-3 py-2">
-                                  <select
-                                    value={item.selected_key}
-                                    onChange={event => setUploadedBatchAssets(current => current.map(candidate => (
-                                      candidate.id === item.id
-                                        ? { ...candidate, selected_key: event.target.value }
-                                        : candidate
-                                    )))}
-                                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
-                                  >
-                                    <option value="">暂不上传</option>
-                                    {missingAssetOptions.map(option => (
-                                      <option key={option.key} value={option.key}>{option.label}</option>
-                                    ))}
-                                  </select>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {preparedAssetResult ? (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                  <p className="font-medium text-white">批量补图结果</p>
-                  <p className="mt-1 text-emerald-100/80">
-                    新增 {preparedAssetResult.imported_count} 张，已就绪 {preparedAssetResult.skipped_count} 张，失败 {preparedAssetResult.failed_count} 张。
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-100/70">
-                    Manifest: {preparedAssetResult.manifest_path}
-                  </p>
-                </div>
-              ) : null}
-              {batchAssetResult ? (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                  <p className="font-medium text-white">通用批量补图结果</p>
-                  <p className="mt-1 text-emerald-100/80">
-                    成功 {batchAssetResult.imported_count} 张，失败 {batchAssetResult.failed_count} 张。
-                  </p>
-                </div>
-              ) : null}
-              <div className="max-h-72 overflow-auto rounded-lg border border-[var(--border)]">
-                <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="border-b border-[var(--border)] bg-[var(--bg-muted)]">
-                    <tr>
-                      <th className="px-3 py-2 text-[var(--text-muted)]">行</th>
-                      <th className="px-3 py-2 text-[var(--text-muted)]">模板</th>
-                      <th className="px-3 py-2 text-[var(--text-muted)]">动作</th>
-                      <th className="px-3 py-2 text-[var(--text-muted)]">资源状态</th>
-                      <th className="px-3 py-2 text-[var(--text-muted)]">说明</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border)]">
-                    {csvPreview.rows.slice(0, 24).map(row => {
-                      const readyAssetCount = (row.asset_checks || []).filter(asset => asset.status === 'ready').length
-                      const missingAssetCount = (row.asset_checks || []).filter(asset => asset.status !== 'ready').length
-                      return (
-                        <tr key={`${row.row}-${row.template_ref}`}>
-                          <td className="px-3 py-2 text-[var(--text-muted)]">{row.row}</td>
-                          <td className="px-3 py-2 text-[var(--text)]">{row.template_ref || '-'}</td>
-                          <td className="px-3 py-2 text-[var(--text)]">{row.action}</td>
-                          <td className="px-3 py-2 text-[var(--text-muted)]">
-                            {row.asset_checks?.length
-                              ? `${readyAssetCount} ready / ${missingAssetCount} missing`
-                              : 'No asset dependency'}
-                          </td>
-                          <td className="px-3 py-2 text-[var(--text-muted)]">{row.error || (row.ready_to_import ? '可导入' : '需先补资源')}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </EntityModal>
+        csvContent={csvContent}
+        publishAfterImport={publishAfterImport}
+        csvPreviewLoading={csvPreviewLoading}
+        csvImporting={csvImporting}
+        preparedAssetImporting={preparedAssetImporting}
+        batchAssetUploading={batchAssetUploading}
+        csvPreview={csvPreview}
+        preparedBundle={preparedBundle}
+        preparedAssetResult={preparedAssetResult}
+        batchAssetResult={batchAssetResult}
+        missingPreviewAssets={missingPreviewAssets}
+        missingAssetOptions={missingAssetOptions}
+        uploadedBatchAssets={uploadedBatchAssets}
+        secondaryButtonClass={secondaryButtonClass}
+        primaryButtonClass={primaryButtonClass}
+        setOpen={setCsvOpen}
+        setCsvContent={setCsvContent}
+        setCsvPreview={setCsvPreview}
+        setPublishAfterImport={setPublishAfterImport}
+        setUploadedBatchAssets={setUploadedBatchAssets}
+        resetCSVFlow={resetCSVFlow}
+        loadPreparedRealCSV={loadPreparedRealCSV}
+        previewCSVImport={previewCSVImport}
+        importCSV={importCSV}
+        importPreparedAssets={importPreparedAssets}
+        handleBatchAssetFilesSelected={handleBatchAssetFilesSelected}
+        uploadMatchedBatchAssets={uploadMatchedBatchAssets}
+      />
 
       <EntityModal
         open={editOpen}
@@ -1018,182 +771,19 @@ export function TemplateOpsPage() {
         </div>
       </EntityModal>
 
-      <EntityModal
+      <TemplateOpsAssetModal
         open={assetOpen}
-        onClose={() => setAssetOpen(false)}
-        title={selectedItem ? `${selectedItem.name} · 图片管理` : '模板图片管理'}
-        description="单模板走单独关联和替换；批量导入则继续由 CSV 预检识别缺图，再按固定 source_ref 规则批量导入资源。"
-        footer={(
-          <div className="flex justify-end gap-3">
-            <button type="button" className={secondaryButtonClass} onClick={() => setAssetOpen(false)}>关闭</button>
-            <button type="button" className={primaryButtonClass} disabled={!assetForm.payload} onClick={() => void saveTemplateAsset()}>
-              上传并绑定
-            </button>
-          </div>
-        )}
-      >
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="space-y-4">
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-4 text-sm text-[var(--text-muted)]">
-              <p className="font-medium text-[var(--text)]">当前绑定</p>
-              <p className="mt-1">批量场景下，平台按 `toolSlug + templateCode + exampleIndex` 自动生成 `source_ref`；单模板只需要选择槽位并上传图片。</p>
-            </div>
-            <div className="max-h-[420px] overflow-auto rounded-lg border border-[var(--border)]">
-              <table className="w-full min-w-[680px] text-left text-sm">
-                <thead className="border-b border-[var(--border)] bg-[var(--bg-muted)]">
-                  <tr>
-                    <th className="px-3 py-2 text-[var(--text-muted)]">槽位</th>
-                    <th className="px-3 py-2 text-[var(--text-muted)]">source_ref</th>
-                    <th className="px-3 py-2 text-[var(--text-muted)]">状态</th>
-                    <th className="px-3 py-2 text-right text-[var(--text-muted)]">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {assetBindings.length ? assetBindings.map(binding => (
-                    <tr key={binding.asset_role}>
-                      <td className="px-3 py-2 text-[var(--text)]">{binding.asset_role}</td>
-                      <td className="px-3 py-2 text-[var(--text-muted)]">
-                        <div className="max-w-[320px] truncate">{binding.source_ref}</div>
-                        {binding.storage_key ? <div className="mt-1 text-xs text-[var(--text-soft)]">{binding.storage_key}</div> : null}
-                      </td>
-                      <td className="px-3 py-2 text-[var(--text-muted)]">{binding.status}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            className={secondaryButtonClass}
-                            onClick={() => setAssetForm(current => ({
-                              ...current,
-                              asset_role: binding.asset_role,
-                              title: binding.title || '',
-                              description: binding.description || '',
-                              asset_ref: binding.asset_ref || '',
-                              storage_file_name: binding.file_name || '',
-                              file_name: binding.file_name || '',
-                              mime_type: binding.mime_type || '',
-                            }))}
-                          >
-                            替换
-                          </button>
-                          <button type="button" className={secondaryButtonClass} onClick={() => void unbindTemplateAsset(binding.asset_role)}>
-                            解绑
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-8 text-center text-[var(--text-muted)]">
-                        {assetLoading ? 'Loading assets...' : '当前模板还没有可识别的图片绑定。'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-4">
-            <p className="text-sm font-semibold text-[var(--text)]">单模板上传 / 替换</p>
-            <Field label="图片槽位">
-              <input value={assetForm.asset_role} onChange={event => setAssetForm(current => ({ ...current, asset_role: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" />
-            </Field>
-            <Field label="标题">
-              <input value={assetForm.title} onChange={event => setAssetForm(current => ({ ...current, title: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" />
-            </Field>
-            <Field label="描述">
-              <textarea value={assetForm.description} onChange={event => setAssetForm(current => ({ ...current, description: event.target.value }))} className="min-h-20 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" />
-            </Field>
-            <Field label="Asset ref">
-              <input value={assetForm.asset_ref} onChange={event => setAssetForm(current => ({ ...current, asset_ref: event.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]" />
-            </Field>
-            <input
-              type="file"
-              accept="image/*"
-              className="block w-full text-sm text-[var(--text-muted)]"
-              onChange={async event => {
-                const file = event.target.files?.[0]
-                if (!file) return
-                const payload = await readFileAsDataURL(file)
-                setAssetForm(current => ({
-                  ...current,
-                  payload,
-                  file_name: file.name,
-                  storage_file_name: file.name,
-                  mime_type: file.type || 'image/png',
-                }))
-              }}
-            />
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-xs text-[var(--text-muted)]">
-              <p>批量模式：CSV 先导入模板，平台自动推导 `source_ref`，再批量导入图片资源。</p>
-              <p className="mt-1">单模板模式：这里直接上传单张图片并绑定到指定槽位，用于补图、替换和纠偏。</p>
-            </div>
-          </div>
-        </div>
-      </EntityModal>
+        setOpen={setAssetOpen}
+        selectedItem={selectedItem}
+        assetLoading={assetLoading}
+        assetBindings={assetBindings}
+        assetForm={assetForm}
+        setAssetForm={setAssetForm}
+        secondaryButtonClass={secondaryButtonClass}
+        primaryButtonClass={primaryButtonClass}
+        saveTemplateAsset={saveTemplateAsset}
+        unbindTemplateAsset={unbindTemplateAsset}
+      />
     </div>
   )
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="grid gap-2">
-      <span className="text-sm font-medium text-[var(--text)]">{label}</span>
-      {children}
-    </label>
-  )
-}
-
-function PreviewStat({ label, value, tone }: { label: string; value: string; tone: 'default' | 'success' | 'warning' }) {
-  const toneClass = tone === 'success'
-    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-    : tone === 'warning'
-      ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
-      : 'border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text)]'
-  return (
-    <div className={`rounded-xl border p-4 ${toneClass}`}>
-      <p className="text-xs uppercase tracking-wide opacity-80">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
-    </div>
-  )
-}
-
-function readFileAsDataURL(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(reader.error || new Error('Failed to read file'))
-    reader.readAsDataURL(file)
-  })
-}
-
-function buildAssetOptionKey(asset: TemplateOpsImportPreviewAssetCheck) {
-  return `${asset.product_code}::${asset.source_ref}`
-}
-
-function suggestMissingAssetKey(fileName: string, assets: TemplateOpsImportPreviewAssetCheck[]) {
-  const scored = assets
-    .map(asset => ({ key: buildAssetOptionKey(asset), score: sourceRefMatchScore(fileName, asset.source_ref) }))
-    .filter(item => item.score > 0)
-    .sort((left, right) => right.score - left.score)
-  return scored[0]?.key || ''
-}
-
-function sourceRefMatchScore(fileName: string, sourceRef: string) {
-  const normalizedFile = normalizeComparable(fileName.replace(/\.[^.]+$/, ''))
-  const sourceSegments = sourceRef.split('/').filter(Boolean)
-  const templateCode = normalizeComparable(sourceSegments[sourceSegments.length - 2] || '')
-  const exampleName = normalizeComparable(sourceSegments[sourceSegments.length - 1] || '')
-  let score = 0
-  if (templateCode && normalizedFile.includes(templateCode)) score += 3
-  if (exampleName && normalizedFile.includes(exampleName)) score += 2
-  if (normalizedFile && normalizeComparable(sourceRef).includes(normalizedFile)) score += 1
-  return score
-}
-
-function normalizeComparable(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '')
-}
-
-function fileTitleFromName(fileName: string) {
-  return fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
 }
