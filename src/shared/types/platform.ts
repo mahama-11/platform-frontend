@@ -294,6 +294,46 @@ export interface RuntimeJobsResult {
   offset: number
 }
 
+export interface AuditLogRecord {
+  id: string
+  request_id: string
+  trace_id: string
+  actor_user_id: string
+  actor_org_id: string
+  action: string
+  target_type: string
+  target_id: string
+  billing_subject_type: string
+  billing_subject_id: string
+  status: string
+  route: string
+  method: string
+  details: string
+  before_snapshot: string
+  after_snapshot: string
+  diff_summary: string
+  created_at: string
+}
+
+export interface AuditLogStats {
+  total: number
+  success_count: number
+  failure_count: number
+  distinct_actions: number
+  latest_created_at?: string
+  by_status: Record<string, number>
+  by_action: Record<string, number>
+  by_target_type: Record<string, number>
+}
+
+export interface AuditLogsResult {
+  items: AuditLogRecord[]
+  total: number
+  limit: number
+  offset: number
+  stats?: AuditLogStats
+}
+
 export interface TemplateOpsCatalogItem {
   template_ref: string
   product_code: string

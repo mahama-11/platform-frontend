@@ -12,7 +12,7 @@ import type {
   SwitchOrgResult,
   UserProfile,
 } from '@/shared/types/auth'
-import type { AllowancePolicyRecord, AssetDefinitionRecord, AssetRecord, BatchUploadAssetsResult, BillableItemRecord, ChargeSession, ChargeSessionsResult, DiscountLedger, ErrorCodesDoc, InternalAccessDoc, OfferingsView, PackageCapabilityPolicyRecord, PackageRecord, PreparedAssetImportResult, PreparedTemplateOpsImportBundle, ProductRecord, QuotaGrantPolicyRecord, RateCardRecord, RuntimeJobDetail, RuntimeJobsResult, SettlementRecord, SKURecord, TemplateAssetBindingsResult, TemplateOpsCatalogDetail, TemplateOpsCatalogResult, TemplateOpsImportPreviewResult, WalletSummary } from '@/shared/types/platform'
+import type { AllowancePolicyRecord, AssetDefinitionRecord, AssetRecord, AuditLogRecord, AuditLogsResult, BatchUploadAssetsResult, BillableItemRecord, ChargeSession, ChargeSessionsResult, DiscountLedger, ErrorCodesDoc, InternalAccessDoc, OfferingsView, PackageCapabilityPolicyRecord, PackageRecord, PreparedAssetImportResult, PreparedTemplateOpsImportBundle, ProductRecord, QuotaGrantPolicyRecord, RateCardRecord, RuntimeJobDetail, RuntimeJobsResult, SettlementRecord, SKURecord, TemplateAssetBindingsResult, TemplateOpsCatalogDetail, TemplateOpsCatalogResult, TemplateOpsImportPreviewResult, WalletSummary } from '@/shared/types/platform'
 
 export const platformClient = {
   login: (email: string, password: string) =>
@@ -233,6 +233,21 @@ export const platformClient = {
     return request<RuntimeJobsResult>(`/runtime/jobs?${params.toString()}`)
   },
   runtimeJobDetail: (runtimeJobId: string) => request<RuntimeJobDetail>(`/runtime/jobs/${runtimeJobId}`),
+  auditLogs: (input: { query?: string; action?: string; target_type?: string; status?: string; actor_user_id?: string; actor_org_id?: string; request_id?: string; trace_id?: string; limit?: number; offset?: number } = {}) => {
+    const params = new URLSearchParams()
+    if (input.query) params.set('query', input.query)
+    if (input.action) params.set('action', input.action)
+    if (input.target_type) params.set('target_type', input.target_type)
+    if (input.status) params.set('status', input.status)
+    if (input.actor_user_id) params.set('actor_user_id', input.actor_user_id)
+    if (input.actor_org_id) params.set('actor_org_id', input.actor_org_id)
+    if (input.request_id) params.set('request_id', input.request_id)
+    if (input.trace_id) params.set('trace_id', input.trace_id)
+    params.set('limit', String(input.limit ?? 20))
+    params.set('offset', String(input.offset ?? 0))
+    return request<AuditLogsResult>(`/audit/logs?${params.toString()}`)
+  },
+  auditLogDetail: (auditID: string) => request<AuditLogRecord>(`/audit/logs/${encodeURIComponent(auditID)}`),
   assetMetadataByStorageKey: (storageKey: string) => request<AssetRecord>(`/assets/metadata?storage_key=${encodeURIComponent(storageKey)}`),
   assetMetadataBySource: (input: { productCode: string; category: string; sourceType: string; sourceRef: string }) => {
     const params = new URLSearchParams({

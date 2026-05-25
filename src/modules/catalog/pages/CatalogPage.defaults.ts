@@ -1,0 +1,9 @@
+export const defaultProductForm = { code: '', name: '', status: 'active', owner_team: '', metadata: '' }
+export const defaultSkuForm = { code: '', name: '', sku_type: 'subscription', billing_mode: 'recurring', currency: 'CNY', list_price: '0', status: 'active', metadata: '' }
+export const defaultPackageForm = { code: '', name: '', package_type: 'subscription', status: 'active', metadata: '' }
+export const defaultBillableForm = { code: '', name: '', meter_unit: 'call', billing_scope: 'organization', settlement_mode: 'included_then_overage', pricing_behavior: 'quota_first', status: 'active', metadata: '' }
+export const defaultRateCardForm = { code: '', target_type: 'sku', target_id: '', price_model: 'flat', currency: 'CNY', price_config: '{"unit_amount": 0}', effective_from: '', effective_to: '', version: '1', status: 'active', metadata: '' }
+export const defaultAssetForm = { asset_code: '', asset_type: 'wallet_credit', lifecycle_type: 'permanent', default_expire_days: '0', reset_cycle: '', status: 'active', description: '', metadata: '' }
+export const defaultPolicyForm = { billing_subject_type: 'organization', billing_subject_id: '', asset_code: '', amount: '0', reset_cycle: 'monthly', status: 'active', effective_from: '', effective_to: '', metadata: '' }
+export const defaultQuotaPolicyForm = { package_code: '', billable_item_code: '', grant_mode: 'cycle_reset', units: '0', reset_cycle: 'monthly', status: 'active', metadata: '' }
+export const defaultCapabilityPolicyForm = { package_code: '', capability_code: 'template_scope', grant_value: 'free_templates', status: 'active', metadata: '' }
