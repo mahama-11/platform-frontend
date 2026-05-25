@@ -194,10 +194,10 @@ export function CatalogPageModals({
             }, mutationSuccessTitle(productEditingId ? 'update' : 'create', 'product'), mutationFailureTitle(productEditingId ? 'update' : 'create', 'product'))}
           >
             <FormGrid>
-              <Field label={fieldLabel('code')}><TextInput value={productForm.code} onChange={value => setProductForm(prev => ({ ...prev, code: value }))} placeholder="menu" /></Field>
-              <Field label={fieldLabel('name')}><TextInput value={productForm.name} onChange={value => setProductForm(prev => ({ ...prev, name: value }))} placeholder="Menu" /></Field>
+              <Field label={fieldLabel('code')}><TextInput value={productForm.code} onChange={value => setProductForm(prev => ({ ...prev, code: value }))} placeholder="product-code" /></Field>
+              <Field label={fieldLabel('name')}><TextInput value={productForm.name} onChange={value => setProductForm(prev => ({ ...prev, name: value }))} placeholder="Product Name" /></Field>
               <Field label={fieldLabel('status')}><SelectInput value={productForm.status} onChange={value => setProductForm(prev => ({ ...prev, status: value }))} options={statusOptions} /></Field>
-              <Field label={fieldLabel('ownerTeam')}><TextInput value={productForm.owner_team} onChange={value => setProductForm(prev => ({ ...prev, owner_team: value }))} placeholder="v-menu-backend" /></Field>
+              <Field label={fieldLabel('ownerTeam')}><TextInput value={productForm.owner_team} onChange={value => setProductForm(prev => ({ ...prev, owner_team: value }))} placeholder="platform-team" /></Field>
             </FormGrid>
             <AdvancedMetadata value={productForm.metadata} onChange={value => setProductForm(prev => ({ ...prev, metadata: value }))} />
           </ModalShell>
@@ -231,8 +231,8 @@ export function CatalogPageModals({
             }, mutationSuccessTitle(skuEditingId ? 'update' : 'create', 'sku'), mutationFailureTitle(skuEditingId ? 'update' : 'create', 'sku'))}
           >
             <FormGrid>
-              <Field label={fieldLabel('code')}><TextInput value={skuForm.code} onChange={value => setSkuForm(prev => ({ ...prev, code: value }))} placeholder="menu.sku.sub.basic.monthly" /></Field>
-              <Field label={fieldLabel('name')}><TextInput value={skuForm.name} onChange={value => setSkuForm(prev => ({ ...prev, name: value }))} placeholder="Menu Basic Monthly" /></Field>
+              <Field label={fieldLabel('code')}><TextInput value={skuForm.code} onChange={value => setSkuForm(prev => ({ ...prev, code: value }))} placeholder="product.sku.plan.monthly" /></Field>
+              <Field label={fieldLabel('name')}><TextInput value={skuForm.name} onChange={value => setSkuForm(prev => ({ ...prev, name: value }))} placeholder="Product Basic Monthly" /></Field>
               <Field label={fieldLabel('skuType')}><SelectInput value={skuForm.sku_type} onChange={value => setSkuForm(prev => ({ ...prev, sku_type: value }))} options={skuTypeOptions} /></Field>
               <Field label={fieldLabel('billingMode')}><SelectInput value={skuForm.billing_mode} onChange={value => setSkuForm(prev => ({ ...prev, billing_mode: value }))} options={billingModeOptions} /></Field>
               <Field label={fieldLabel('currency')}><TextInput value={skuForm.currency} onChange={value => setSkuForm(prev => ({ ...prev, currency: value }))} placeholder="CNY" /></Field>
@@ -269,7 +269,7 @@ export function CatalogPageModals({
             }, mutationSuccessTitle(packageEditingId ? 'update' : 'create', 'package'), mutationFailureTitle(packageEditingId ? 'update' : 'create', 'package'))}
           >
             <FormGrid>
-              <Field label={fieldLabel('code')}><TextInput value={packageForm.code} onChange={value => setPackageForm(prev => ({ ...prev, code: value }))} placeholder="menu.pkg.sub.basic.monthly" /></Field>
+              <Field label={fieldLabel('code')}><TextInput value={packageForm.code} onChange={value => setPackageForm(prev => ({ ...prev, code: value }))} placeholder="product.pkg.plan.monthly" /></Field>
               <Field label={fieldLabel('name')}><TextInput value={packageForm.name} onChange={value => setPackageForm(prev => ({ ...prev, name: value }))} placeholder="Basic Monthly Package" /></Field>
               <Field label={fieldLabel('packageType')}><SelectInput value={packageForm.package_type} onChange={value => setPackageForm(prev => ({ ...prev, package_type: value }))} options={packageTypeOptions} /></Field>
               <Field label={fieldLabel('status')}><SelectInput value={packageForm.status} onChange={value => setPackageForm(prev => ({ ...prev, status: value }))} options={statusOptions} /></Field>
@@ -296,8 +296,8 @@ export function CatalogPageModals({
             }, mutationSuccessTitle(billableEditingId ? 'update' : 'create', 'billableItem'), mutationFailureTitle(billableEditingId ? 'update' : 'create', 'billableItem'))}
           >
             <FormGrid>
-              <Field label={fieldLabel('code')}><TextInput value={billableForm.code} onChange={value => setBillableForm(prev => ({ ...prev, code: value }))} placeholder="menu.render.call" /></Field>
-              <Field label={fieldLabel('name')}><TextInput value={billableForm.name} onChange={value => setBillableForm(prev => ({ ...prev, name: value }))} placeholder="Menu Render Call" /></Field>
+              <Field label={fieldLabel('code')}><TextInput value={billableForm.code} onChange={value => setBillableForm(prev => ({ ...prev, code: value }))} placeholder="product.usage.call" /></Field>
+              <Field label={fieldLabel('name')}><TextInput value={billableForm.name} onChange={value => setBillableForm(prev => ({ ...prev, name: value }))} placeholder="Product Usage Call" /></Field>
               <Field label={fieldLabel('meterUnit')}><TextInput value={billableForm.meter_unit} onChange={value => setBillableForm(prev => ({ ...prev, meter_unit: value }))} placeholder="call" /></Field>
               <Field label={fieldLabel('billingScope')}><SelectInput value={billableForm.billing_scope} onChange={value => setBillableForm(prev => ({ ...prev, billing_scope: value }))} options={billingScopeOptions} /></Field>
               <Field label={fieldLabel('settlementMode')}><SelectInput value={billableForm.settlement_mode} onChange={value => setBillableForm(prev => ({ ...prev, settlement_mode: value }))} options={settlementModeOptions} /></Field>
@@ -339,7 +339,7 @@ export function CatalogPageModals({
             }, mutationSuccessTitle(rateCardEditingId ? 'update' : 'create', 'rateCard'), mutationFailureTitle(rateCardEditingId ? 'update' : 'create', 'rateCard'))}
           >
             <FormGrid>
-              <Field label={fieldLabel('code')}><TextInput value={rateCardForm.code} onChange={value => setRateCardForm(prev => ({ ...prev, code: value }))} placeholder="menu.render.call.v1" /></Field>
+              <Field label={fieldLabel('code')}><TextInput value={rateCardForm.code} onChange={value => setRateCardForm(prev => ({ ...prev, code: value }))} placeholder="product.usage.call.v1" /></Field>
               <Field label={fieldLabel('targetType')}><SelectInput value={rateCardForm.target_type} onChange={value => setRateCardForm(prev => ({ ...prev, target_type: value, target_id: '' }))} options={rateCardTargetTypeOptions} /></Field>
               <Field label={fieldLabel('targetId')}><SelectInput value={rateCardForm.target_id} onChange={value => setRateCardForm(prev => ({ ...prev, target_id: value }))} options={rateCardTargetOptions} placeholder={t('catalog.placeholder.selectTarget')} /></Field>
               <Field label={fieldLabel('priceModel')}><SelectInput value={rateCardForm.price_model} onChange={value => setRateCardForm(prev => ({ ...prev, price_model: value }))} options={priceModelOptions} /></Field>

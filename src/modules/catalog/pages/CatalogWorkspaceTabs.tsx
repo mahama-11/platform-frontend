@@ -303,7 +303,7 @@ export function CatalogWorkspaceTabs({
             <motion.div key="tab-api" {...tabMotionProps}>
               <SectionCard title={t('catalog.page.section.apiTitle')} description={t('catalog.page.section.apiDescription')}>
                 <CodePanel>
-                  {`GET /internal/v1/catalog/offerings?product_code=${selectedProduct?.code || 'menu'}`}
+                  {`GET /internal/v1/catalog/offerings?product_code=${selectedProduct?.code || 'product-code'}`}
                 </CodePanel>
                 <p className="mt-4 text-sm text-slate-400">
                   {t('catalog.page.section.apiBody')}
