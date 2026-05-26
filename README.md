@@ -36,12 +36,16 @@ npm run build
 
 ## 部署
 
+Cloud dev / promote 的固定入口在 workspace 级 runbook：`../tools/dev/README.md`。
+
+- Cloud dev 部署必须从 `/root/work/v` 使用 `tools/dev/deploy-cloud-dev-all.sh --apps ecom,platform`，不要直接运行本目录旧 `deploy/deploy.sh dev` 绕过 commit/prod guard/evidence。
+- dev 验证后 promote prod 只能在审批后使用 `tools/dev/promote-cloud-dev-to-prod.sh --yes --src-tag dev`。
 - `deploy/Dockerfile`: 生产镜像，多阶段构建并使用 Nginx 承载静态产物
 - `deploy/Dockerfile.dev`: 使用本地已构建 `dist/` 的轻量开发镜像
 - `deploy/platform-console-nginx.conf`: SPA 路由回退与静态缓存配置
 - `deploy/entrypoint.sh`: 容器启动时注入 `VITE_*` 运行时环境变量
 - `deploy/docker-compose.yml`: `dev/prod` 两套服务编排样例
-- `deploy/deploy.sh`: 参考 `v-ecommerce-frontend` 的远端部署脚本，支持 `dev|prod|promote|rollback`
+- `deploy/deploy.sh`: legacy 单项目脚本；Cloud dev 默认被阻断，除非显式 `ALLOW_LEGACY_DEV_DEPLOY=1` 做本地实验。正常 Cloud dev/promote 使用 workspace 级 `tools/dev/*`。
 
 ## 当前约定
 
