@@ -13,6 +13,7 @@ services:
       - VITE_MENU_API_BASE_URL=/menu-api/v1
       - VITE_LOG_EXPLORER_URL=${VITE_LOG_EXPLORER_URL:-}
       - VITE_TRACE_EXPLORER_URL=${VITE_TRACE_EXPLORER_URL:-}
+      - VITE_TRACE_BACKEND_ENABLED=${VITE_TRACE_BACKEND_ENABLED:-false}
     healthcheck:
       test:
         [
@@ -38,6 +39,7 @@ services:
       - VITE_MENU_API_BASE_URL=/menu-api/v1
       - VITE_LOG_EXPLORER_URL=${VITE_LOG_EXPLORER_URL:-}
       - VITE_TRACE_EXPLORER_URL=${VITE_TRACE_EXPLORER_URL:-}
+      - VITE_TRACE_BACKEND_ENABLED=${VITE_TRACE_BACKEND_ENABLED:-false}
     networks:
       - shared-network
     healthcheck:

@@ -87,10 +87,16 @@ function topEntries(value: Record<string, number> | undefined) {
   return Object.entries(value ?? {}).sort((left, right) => right[1] - left[1]).slice(0, 3)
 }
 
+function replacePlaceholder(url: string, placeholder: string, value: string) {
+  const encodedPlaceholder = encodeURIComponent(placeholder)
+  const encodedValue = encodeURIComponent(value)
+  return url.replaceAll(placeholder, encodedValue).replaceAll(encodedPlaceholder, encodedValue)
+}
+
 function buildTraceExplorerUrl(traceID?: string) {
-  if (!traceID || !env.traceExplorerUrl) return ''
-  if (env.traceExplorerUrl.includes('{trace_id}')) {
-    return env.traceExplorerUrl.replace('{trace_id}', encodeURIComponent(traceID))
+  if (!traceID || !env.traceExplorerUrl || !env.traceBackendEnabled) return ''
+  if (env.traceExplorerUrl.includes('{trace_id}') || env.traceExplorerUrl.includes('%7Btrace_id%7D')) {
+    return replacePlaceholder(env.traceExplorerUrl, '{trace_id}', traceID)
   }
   const separator = env.traceExplorerUrl.includes('?') ? '&' : '?'
   return `${env.traceExplorerUrl}${separator}trace_id=${encodeURIComponent(traceID)}`
@@ -101,10 +107,8 @@ function buildLogExplorerUrl(input: { requestID?: string; traceID?: string }) {
   let url = env.logExplorerUrl
   const requestID = input.requestID || ''
   const traceID = input.traceID || ''
-  if (url.includes('{request_id}') || url.includes('{trace_id}')) {
-    return url
-      .replace('{request_id}', encodeURIComponent(requestID))
-      .replace('{trace_id}', encodeURIComponent(traceID))
+  if (url.includes('{request_id}') || url.includes('{trace_id}') || url.includes('%7Brequest_id%7D') || url.includes('%7Btrace_id%7D')) {
+    return replacePlaceholder(replacePlaceholder(url, '{request_id}', requestID), '{trace_id}', traceID)
   }
   const params = new URLSearchParams()
   if (requestID) params.set('request_id', requestID)
@@ -154,6 +158,8 @@ export function AuditPage() {
   const [detailError, setDetailError] = useState<string | null>(null)
   const [internalAccessDoc, setInternalAccessDoc] = useState<InternalAccessDoc | null>(null)
   const [errorCodesDoc, setErrorCodesDoc] = useState<ErrorCodesDoc | null>(null)
+  const [diagnosticRequestID, setDiagnosticRequestID] = useState(searchParams.get('request_id') || '')
+  const [diagnosticTraceID, setDiagnosticTraceID] = useState(searchParams.get('trace_id') || '')
 
   const filters = useMemo(() => ({
     query: searchParams.get('query') || '',
@@ -254,6 +260,13 @@ export function AuditPage() {
   const targetBreakdown = topEntries(stats?.by_target_type)
   const selectedTraceUrl = buildTraceExplorerUrl(selectedLog?.trace_id)
   const selectedLogUrl = buildLogExplorerUrl({ requestID: selectedLog?.request_id, traceID: selectedLog?.trace_id })
+  const diagnosticLogUrl = buildLogExplorerUrl({ requestID: diagnosticRequestID.trim(), traceID: diagnosticTraceID.trim() })
+  const diagnosticTraceUrl = buildTraceExplorerUrl(diagnosticTraceID.trim())
+  const diagnosticLogQuery = diagnosticRequestID.trim()
+    ? `{env="dev"} | json | request_id="${diagnosticRequestID.trim()}"`
+    : diagnosticTraceID.trim()
+      ? `{env="dev"} | json | trace_id="${diagnosticTraceID.trim()}"`
+      : '{env="dev"} | json | status >= 400'
 
   const goToOffset = (offset: number) => {
     const next = new URLSearchParams(searchParams)
@@ -307,8 +320,40 @@ export function AuditPage() {
           })}
         </div>
         <p className="mt-4 rounded-lg border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-          Trace guidance: use <span className="font-mono">trace_id</span> to correlate audit rows with request logs now. {env.logExplorerUrl ? 'Log explorer links are enabled for request-level troubleshooting. ' : 'Set VITE_LOG_EXPLORER_URL after Loki / ELK / ClickHouse is available to enable one-click log search. '}{env.traceExplorerUrl ? 'Trace deep links are enabled for this console.' : 'Set VITE_TRACE_EXPLORER_URL after Tempo / Jaeger is available to enable one-click trace jumps.'}
+          Log guidance: raw request logs are system-wide, not audit-only. Copy <span className="font-mono">X-Request-ID</span> from Browser DevTools → Network, an API response header, or an error response body, then search logs by <span className="font-mono">request_id</span>. {env.logExplorerUrl ? 'Log explorer links are enabled for request-level troubleshooting. ' : 'Set VITE_LOG_EXPLORER_URL after Loki / ELK / ClickHouse is available to enable one-click log search. '}
+          {env.traceBackendEnabled ? 'Trace backend links are enabled for this console.' : 'Trace IDs are present in logs, but Tempo / Jaeger span search is not enabled in this environment yet.'}
         </p>
+        <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--bg)] p-4" data-testid="system-log-search-panel">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">System log search</p>
+              <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Paste any request_id from API headers/body or DevTools Network. This searches raw Platform/Ecommerce backend stdout logs, even when there is no audit row.</p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-medium ${env.traceBackendEnabled ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-200'}`}>
+              {env.traceBackendEnabled ? 'Trace backend enabled' : 'Trace backend not enabled'}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <label>
+              <span className="text-xs uppercase tracking-wide text-[var(--text-soft)]">request_id</span>
+              <input value={diagnosticRequestID} onChange={event => setDiagnosticRequestID(event.target.value)} placeholder="X-Request-ID from Network / API response" className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-2.5 font-mono text-sm text-[var(--text)] outline-none focus:border-[var(--primary-soft)]" />
+            </label>
+            <label>
+              <span className="text-xs uppercase tracking-wide text-[var(--text-soft)]">trace_id</span>
+              <input value={diagnosticTraceID} onChange={event => setDiagnosticTraceID(event.target.value)} placeholder="Optional: trace_id from response/logs" className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-2.5 font-mono text-sm text-[var(--text)] outline-none focus:border-[var(--primary-soft)]" />
+            </label>
+          </div>
+          <div className="mt-3 rounded-lg border border-[var(--border)] bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Generated log query</p>
+            <code className="mt-1 block break-all font-mono text-sm text-sky-200">{diagnosticLogQuery}</code>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => copyText(diagnosticRequestID.trim())} disabled={!diagnosticRequestID.trim()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] hover:border-[var(--border-strong)] disabled:cursor-not-allowed disabled:opacity-40"><Copy className="h-4 w-4" />Copy request_id</button>
+            <button type="button" onClick={() => copyText(diagnosticLogQuery)} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] hover:border-[var(--border-strong)]"><Copy className="h-4 w-4" />Copy query</button>
+            {diagnosticLogUrl ? <a href={diagnosticLogUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open logs</a> : null}
+            {diagnosticTraceUrl ? <a href={diagnosticTraceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open trace</a> : null}
+          </div>
+        </div>
         <p className="mt-3 flex gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
           Audit rows are business facts stored in platform_audit_logs. High-volume access logs still belong to stdout/log collector; do not turn the business DB into a raw request-log sink.
@@ -422,6 +467,7 @@ export function AuditPage() {
                       <button type="button" onClick={() => copyText(selectedLog.trace_id)} className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><Copy className="h-4 w-4" />Copy trace</button>
                       {selectedLogUrl ? <a href={selectedLogUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open logs</a> : null}
                       {selectedTraceUrl ? <a href={selectedTraceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open trace</a> : null}
+                      {!env.traceBackendEnabled && selectedLog.trace_id ? <span className="inline-flex items-center rounded-lg border border-amber-300/30 px-3 py-2 text-sm text-amber-100">Trace backend not enabled</span> : null}
                     </div>
                   </div>
                 </div>

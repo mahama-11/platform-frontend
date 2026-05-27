@@ -59,5 +59,8 @@ Cloud dev / promote 的固定入口在 workspace 级 runbook：`../tools/dev/REA
 
 - `VITE_LOG_EXPLORER_URL`: vendor-neutral 日志查询入口，可指向 Grafana Explore(Loki)、ELK/Kibana、ClickHouse 查询页或商业日志平台。支持 `{request_id}` / `{trace_id}` 占位符；若不含占位符，会自动追加 `request_id` 与 `trace_id` query 参数。React 代码只负责模板替换，不写死 Loki/LogQL。
 - `VITE_TRACE_EXPLORER_URL`: Trace 查询入口，建议指向 Grafana Tempo 或 Jaeger。支持 `{trace_id}` 占位符；若不含占位符，会自动追加 `trace_id` query 参数。
+- `VITE_TRACE_BACKEND_ENABLED`: Trace 后端开关，默认 `false`。只有 Tempo/Jaeger/OTel Collector 链路真实可查时才设为 `true`；否则页面只展示 trace_id 作为日志关联字段，不显示可点击的 trace 跳转。
+
+页面内的 **System log search** 面板用于非审计场景：把 DevTools Network、API header `X-Request-ID` 或错误响应体里的 `request_id` 粘进去，即可生成外部日志查询链接。
 
 边界：业务 DB 只保存审计事实；高频 access/stdout 日志应进入日志平台，不应写入 `platform_audit_logs`。
