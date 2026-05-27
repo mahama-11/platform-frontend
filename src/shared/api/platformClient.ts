@@ -12,7 +12,7 @@ import type {
   SwitchOrgResult,
   UserProfile,
 } from '@/shared/types/auth'
-import type { AllowancePolicyRecord, AssetDefinitionRecord, AssetRecord, AuditLogRecord, AuditLogsResult, BatchUploadAssetsResult, BillableItemRecord, ChargeSession, ChargeSessionsResult, DiscountLedger, ErrorCodesDoc, InternalAccessDoc, OfferingsView, PackageCapabilityPolicyRecord, PackageRecord, PreparedAssetImportResult, PreparedTemplateOpsImportBundle, ProductRecord, QuotaGrantPolicyRecord, RateCardRecord, RuntimeJobDetail, RuntimeJobsResult, SettlementRecord, SKURecord, TemplateAssetBindingsResult, TemplateOpsCatalogDetail, TemplateOpsCatalogResult, TemplateOpsImportPreviewResult, WalletSummary } from '@/shared/types/platform'
+import type { AllowancePolicyRecord, AssetDefinitionRecord, AssetRecord, AuditLogRecord, AuditLogsResult, BatchUploadAssetsResult, BillableItemRecord, ChargeSession, ChargeSessionsResult, DiscountLedger, ErrorCodesDoc, InternalAccessDoc, OfferingsView, PackageCapabilityPolicyRecord, PackageRecord, PreparedAssetImportResult, PreparedTemplateOpsImportBundle, ProductRecord, QuotaGrantPolicyRecord, RateCardRecord, RequestDiagnosticsResult, RuntimeJobDetail, RuntimeJobsResult, SettlementRecord, SKURecord, TemplateAssetBindingsResult, TemplateOpsCatalogDetail, TemplateOpsCatalogResult, TemplateOpsImportPreviewResult, WalletSummary } from '@/shared/types/platform'
 
 export const platformClient = {
   login: (email: string, password: string) =>
@@ -248,6 +248,14 @@ export const platformClient = {
     return request<AuditLogsResult>(`/audit/logs?${params.toString()}`)
   },
   auditLogDetail: (auditID: string) => request<AuditLogRecord>(`/audit/logs/${encodeURIComponent(auditID)}`),
+  requestDiagnostics: (input: { request_id: string; trace_id?: string; lookback?: string; limit?: number }) => {
+    const params = new URLSearchParams()
+    if (input.trace_id) params.set('trace_id', input.trace_id)
+    if (input.lookback) params.set('lookback', input.lookback)
+    if (input.limit) params.set('limit', String(input.limit))
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return request<RequestDiagnosticsResult>(`/audit/diagnostics/requests/${encodeURIComponent(input.request_id)}${suffix}`)
+  },
   assetMetadataByStorageKey: (storageKey: string) => request<AssetRecord>(`/assets/metadata?storage_key=${encodeURIComponent(storageKey)}`),
   assetMetadataBySource: (input: { productCode: string; category: string; sourceType: string; sourceRef: string }) => {
     const params = new URLSearchParams({

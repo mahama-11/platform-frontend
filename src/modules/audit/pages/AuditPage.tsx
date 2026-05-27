@@ -8,7 +8,7 @@ import { platformClient } from '@/shared/api/platformClient'
 import { env } from '@/shared/config/env'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { SectionCard } from '@/shared/ui/SectionCard'
-import type { AuditLogRecord, AuditLogStats, ErrorCodesDoc, InternalAccessDoc } from '@/shared/types/platform'
+import type { AuditLogRecord, AuditLogStats, ErrorCodesDoc, InternalAccessDoc, RequestDiagnosticsResult } from '@/shared/types/platform'
 
 const PAGE_SIZE = 20
 
@@ -160,6 +160,9 @@ export function AuditPage() {
   const [errorCodesDoc, setErrorCodesDoc] = useState<ErrorCodesDoc | null>(null)
   const [diagnosticRequestID, setDiagnosticRequestID] = useState(searchParams.get('request_id') || '')
   const [diagnosticTraceID, setDiagnosticTraceID] = useState(searchParams.get('trace_id') || '')
+  const [diagnostics, setDiagnostics] = useState<RequestDiagnosticsResult | null>(null)
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false)
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null)
 
   const filters = useMemo(() => ({
     query: searchParams.get('query') || '',
@@ -251,6 +254,23 @@ export function AuditPage() {
       cancelled = true
     }
   }, [items, selectedID])
+
+
+  const runDiagnostics = useCallback(async (requestID = diagnosticRequestID.trim(), traceID = diagnosticTraceID.trim()) => {
+    if (!requestID) return
+    try {
+      setDiagnosticsLoading(true)
+      setDiagnosticsError(null)
+      const result = await platformClient.requestDiagnostics({ request_id: requestID, trace_id: traceID || undefined, lookback: '2h', limit: 100 })
+      setDiagnostics(result)
+      if (result.trace_id && !traceID) setDiagnosticTraceID(result.trace_id)
+    } catch (err) {
+      setDiagnosticsError(err instanceof Error ? err.message : 'Failed to run diagnostics')
+      setDiagnostics(null)
+    } finally {
+      setDiagnosticsLoading(false)
+    }
+  }, [diagnosticRequestID, diagnosticTraceID])
 
   const currentPage = Math.floor(filters.offset / PAGE_SIZE) + 1
   const hasNext = filters.offset + PAGE_SIZE < total
@@ -349,10 +369,32 @@ export function AuditPage() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => copyText(diagnosticRequestID.trim())} disabled={!diagnosticRequestID.trim()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] hover:border-[var(--border-strong)] disabled:cursor-not-allowed disabled:opacity-40"><Copy className="h-4 w-4" />Copy request_id</button>
+            <button type="button" onClick={() => runDiagnostics()} disabled={!diagnosticRequestID.trim() || diagnosticsLoading} className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/30 px-3 py-2 text-sm text-emerald-100 hover:bg-emerald-300/10 disabled:cursor-not-allowed disabled:opacity-40"><Activity className={`h-4 w-4 ${diagnosticsLoading ? 'animate-pulse' : ''}`} />Run diagnostics</button>
             <button type="button" onClick={() => copyText(diagnosticLogQuery)} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] hover:border-[var(--border-strong)]"><Copy className="h-4 w-4" />Copy query</button>
             {diagnosticLogUrl ? <a href={diagnosticLogUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open logs</a> : null}
             {diagnosticTraceUrl ? <a href={diagnosticTraceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open trace</a> : null}
           </div>
+          {diagnosticsError ? <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{diagnosticsError}</div> : null}
+          {diagnostics ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-3" data-testid="request-diagnostics-summary">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-4">
+                <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Log summary</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{diagnostics.log_summary.total_lines}</p>
+                <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{diagnostics.log_summary.services.join(', ') || 'No services'}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-4">
+                <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Trace summary</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{diagnostics.trace_summary.span_count}</p>
+                <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{diagnostics.trace_id || 'No trace_id'}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-4">
+                <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Findings</p>
+                <div className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
+                  {diagnostics.findings.length ? diagnostics.findings.slice(0, 3).map(item => <p key={item.code} className="truncate"><span className={item.severity === 'error' ? 'text-rose-300' : item.severity === 'warning' ? 'text-amber-200' : 'text-sky-200'}>{item.code}</span> · {item.message}</p>) : <p>No findings.</p>}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
         <p className="mt-3 flex gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
