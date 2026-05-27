@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
-import { RefreshCw, Search, X } from 'lucide-react'
+import { Activity, AlertTriangle, Copy, Database, ExternalLink, RefreshCw, Search, X } from 'lucide-react'
 
 import { platformClient } from '@/shared/api/platformClient'
+import { env } from '@/shared/config/env'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { SectionCard } from '@/shared/ui/SectionCard'
 import type { AuditLogRecord, AuditLogStats, ErrorCodesDoc, InternalAccessDoc } from '@/shared/types/platform'
@@ -25,6 +26,24 @@ const itemVariants = {
 }
 
 const statusOptions = ['', 'success', 'failed', 'error', 'denied']
+
+const investigationSteps = [
+  {
+    title: '1. Correlate request',
+    description: 'Start with request_id or trace_id from a downstream error response, gateway log, or runtime job.',
+    icon: Search,
+  },
+  {
+    title: '2. Review business fact',
+    description: 'Audit records show who changed what, the target, route, before/after snapshots, and diff summary.',
+    icon: Database,
+  },
+  {
+    title: '3. Pivot to traces/logs',
+    description: 'Use trace_id for stdout request logs now; enable Grafana/Tempo deep links when tracing backend is deployed.',
+    icon: Activity,
+  },
+]
 
 function valueOrDash(value?: string) {
   return value && value.trim() ? value : '—'
@@ -66,6 +85,38 @@ function numericStat(value: number | undefined, fallback = 0) {
 
 function topEntries(value: Record<string, number> | undefined) {
   return Object.entries(value ?? {}).sort((left, right) => right[1] - left[1]).slice(0, 3)
+}
+
+function buildTraceExplorerUrl(traceID?: string) {
+  if (!traceID || !env.traceExplorerUrl) return ''
+  if (env.traceExplorerUrl.includes('{trace_id}')) {
+    return env.traceExplorerUrl.replace('{trace_id}', encodeURIComponent(traceID))
+  }
+  const separator = env.traceExplorerUrl.includes('?') ? '&' : '?'
+  return `${env.traceExplorerUrl}${separator}trace_id=${encodeURIComponent(traceID)}`
+}
+
+function buildLogExplorerUrl(input: { requestID?: string; traceID?: string }) {
+  if (!env.logExplorerUrl) return ''
+  let url = env.logExplorerUrl
+  const requestID = input.requestID || ''
+  const traceID = input.traceID || ''
+  if (url.includes('{request_id}') || url.includes('{trace_id}')) {
+    return url
+      .replace('{request_id}', encodeURIComponent(requestID))
+      .replace('{trace_id}', encodeURIComponent(traceID))
+  }
+  const params = new URLSearchParams()
+  if (requestID) params.set('request_id', requestID)
+  if (traceID) params.set('trace_id', traceID)
+  if (!params.size) return url
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}${params.toString()}`
+}
+
+async function copyText(value?: string) {
+  if (!value) return
+  await navigator.clipboard?.writeText(value)
 }
 
 function DetailRow({ label, value }: { label: string; value?: string }) {
@@ -111,6 +162,8 @@ export function AuditPage() {
     status: searchParams.get('status') || '',
     request_id: searchParams.get('request_id') || '',
     trace_id: searchParams.get('trace_id') || '',
+    actor_user_id: searchParams.get('actor_user_id') || '',
+    actor_org_id: searchParams.get('actor_org_id') || '',
     offset: Number(searchParams.get('offset') || '0') || 0,
   }), [searchParams])
 
@@ -199,6 +252,8 @@ export function AuditPage() {
   const statusBreakdown = topEntries(stats?.by_status)
   const actionBreakdown = topEntries(stats?.by_action)
   const targetBreakdown = topEntries(stats?.by_target_type)
+  const selectedTraceUrl = buildTraceExplorerUrl(selectedLog?.trace_id)
+  const selectedLogUrl = buildLogExplorerUrl({ requestID: selectedLog?.request_id, traceID: selectedLog?.trace_id })
 
   const goToOffset = (offset: number) => {
     const next = new URLSearchParams(searchParams)
@@ -223,8 +278,8 @@ export function AuditPage() {
         )}
       />
 
-      <SectionCard title="Audit observability filters" description="Query platform audit trails by actor, action, target, request correlation and trace identifiers.">
-        <div className="grid gap-3 lg:grid-cols-6">
+      <SectionCard title="Investigation console" description="Start from a downstream request_id / trace_id, then review immutable audit facts before pivoting to request logs or trace tooling.">
+        <div className="grid gap-3 lg:grid-cols-8">
           <label className="relative lg:col-span-2">
             <span className="sr-only">Search audit logs</span>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-soft)]" />
@@ -236,10 +291,27 @@ export function AuditPage() {
             {statusOptions.map(option => <option key={option} value={option}>{option || 'all statuses'}</option>)}
           </select>
           <input value={filters.request_id} onChange={event => setFilter('request_id', event.target.value)} placeholder="request_id" className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--primary-soft)]" />
-          <input value={filters.trace_id} onChange={event => setFilter('trace_id', event.target.value)} placeholder="trace_id" className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--primary-soft)] lg:col-span-2" />
+          <input value={filters.trace_id} onChange={event => setFilter('trace_id', event.target.value)} placeholder="trace_id" className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--primary-soft)]" />
+          <input value={filters.actor_user_id} onChange={event => setFilter('actor_user_id', event.target.value)} placeholder="actor_user_id" className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--primary-soft)]" />
+          <input value={filters.actor_org_id} onChange={event => setFilter('actor_org_id', event.target.value)} placeholder="actor_org_id" className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--primary-soft)]" />
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          {investigationSteps.map(step => {
+            const Icon = step.icon
+            return (
+              <div key={step.title} className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]"><Icon className="h-4 w-4 text-sky-300" />{step.title}</div>
+                <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{step.description}</p>
+              </div>
+            )
+          })}
         </div>
         <p className="mt-4 rounded-lg border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-          Trace guidance: use <span className="font-mono">trace_id</span> to correlate audit rows with request logs now. It is ready for a Grafana/Tempo deep link once the trace backend is enabled; no external URL is hardcoded here.
+          Trace guidance: use <span className="font-mono">trace_id</span> to correlate audit rows with request logs now. {env.logExplorerUrl ? 'Log explorer links are enabled for request-level troubleshooting. ' : 'Set VITE_LOG_EXPLORER_URL after Loki / ELK / ClickHouse is available to enable one-click log search. '}{env.traceExplorerUrl ? 'Trace deep links are enabled for this console.' : 'Set VITE_TRACE_EXPLORER_URL after Tempo / Jaeger is available to enable one-click trace jumps.'}
+        </p>
+        <p className="mt-3 flex gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
+          Audit rows are business facts stored in platform_audit_logs. High-volume access logs still belong to stdout/log collector; do not turn the business DB into a raw request-log sink.
         </p>
         {error ? <div className="mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">{error}</div> : null}
       </SectionCard>
@@ -339,6 +411,20 @@ export function AuditPage() {
             {detailError ? <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">{detailError}. Showing list payload when available.</div> : null}
             {selectedLog ? (
               <div className="space-y-5">
+                <div className="rounded-lg border border-sky-500/20 bg-sky-500/10 p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-sky-100">Correlation pack</p>
+                      <p className="mt-1 text-sm text-sky-200/80">Copy these IDs into downstream service logs, container stdout, or trace explorer during incident triage.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => copyText(selectedLog.request_id)} className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><Copy className="h-4 w-4" />Copy request</button>
+                      <button type="button" onClick={() => copyText(selectedLog.trace_id)} className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><Copy className="h-4 w-4" />Copy trace</button>
+                      {selectedLogUrl ? <a href={selectedLogUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open logs</a> : null}
+                      {selectedTraceUrl ? <a href={selectedTraceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open trace</a> : null}
+                    </div>
+                  </div>
+                </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <DetailRow label="request_id" value={selectedLog.request_id} />
                   <DetailRow label="trace_id" value={selectedLog.trace_id} />

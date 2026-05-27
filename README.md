@@ -52,3 +52,12 @@ Cloud dev / promote 的固定入口在 workspace 级 runbook：`../tools/dev/REA
 - 面向用户可见的商业状态、资产名、事件名、价格口径统一通过前端 i18n helper 映射，不直接裸露底层 code。
 - 价格相关字段统一按最小货币单位存储与传输；界面展示会同时给出可读金额与原始最小单位说明。
 - `dist/` 与 `node_modules/` 不纳入仓库。
+
+## 可观测入口
+
+审计诊断页 `/audit` 以 Platform 后端 `platform_audit_logs` 为业务事实入口，并支持跳转到外部日志/链路系统：
+
+- `VITE_LOG_EXPLORER_URL`: vendor-neutral 日志查询入口，可指向 Grafana Explore(Loki)、ELK/Kibana、ClickHouse 查询页或商业日志平台。支持 `{request_id}` / `{trace_id}` 占位符；若不含占位符，会自动追加 `request_id` 与 `trace_id` query 参数。React 代码只负责模板替换，不写死 Loki/LogQL。
+- `VITE_TRACE_EXPLORER_URL`: Trace 查询入口，建议指向 Grafana Tempo 或 Jaeger。支持 `{trace_id}` 占位符；若不含占位符，会自动追加 `trace_id` query 参数。
+
+边界：业务 DB 只保存审计事实；高频 access/stdout 日志应进入日志平台，不应写入 `platform_audit_logs`。
