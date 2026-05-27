@@ -55,7 +55,7 @@ Cloud dev / promote 的固定入口在 workspace 级 runbook：`../tools/dev/REA
 
 ## 可观测入口
 
-审计诊断页 `/audit` 以 Platform 后端 `platform_audit_logs` 为业务事实入口，并支持跳转到外部日志/链路系统：
+审计诊断页 `/audit` 以 Platform 后端 `platform_audit_logs` 为业务事实入口，并支持跳转到外部日志/链路系统。注意：日志查询并不依赖审计表；任意 Platform/Ecommerce API 请求都应从响应头 `X-Request-ID` 或 JSON 响应体 `request_id` 取 ID，再到外部日志系统查 raw stdout 日志。`/audit` 只是已审计业务动作的一个入口。
 
 - `VITE_LOG_EXPLORER_URL`: vendor-neutral 日志查询入口，可指向 Grafana Explore(Loki)、ELK/Kibana、ClickHouse 查询页或商业日志平台。支持 `{request_id}` / `{trace_id}` 占位符；若不含占位符，会自动追加 `request_id` 与 `trace_id` query 参数。React 代码只负责模板替换，不写死 Loki/LogQL。
 - `VITE_TRACE_EXPLORER_URL`: Trace 查询入口，建议指向 Grafana Tempo 或 Jaeger。支持 `{trace_id}` 占位符；若不含占位符，会自动追加 `trace_id` query 参数。
