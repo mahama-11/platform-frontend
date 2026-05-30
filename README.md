@@ -8,14 +8,23 @@
 
 - `auth`: 登录入口与会话恢复
 - `dashboard`: 平台总览页
-- `organizations`: 组织视角切换与列表
-- `access-center`: 访问控制与权限视图
-- `audit`: 审计日志查询
-- `billing`: charge session / settlement / discount 运营排障页
-- `catalog`: product / sku / package / billable item / rate card / asset / policy 管理
-- `runtime`: runtime job 与 attempt 追踪
-- `template-ops`: 平台模板运营中心
+- `runtime`: runtime job、provider attempt 与 charge session 追踪
+- `template-ops`: 平台模板运营中心，含 catalog、sync、CSV import/export、asset binding、publish
 - `menu-ops`: Menu 业务历史作业与资产库联调页
+- `merchants`: 商户/主体运营入口
+- `catalog`: product / sku / package / billable item / rate card / offering 管理
+- `billing`: wallet / controls / metering / settlement / discount / charge session 运营排障页
+- `organizations`: 组织、用户、成员运营管理
+- `access-center`: 访问控制、权限、角色视图
+- `audit`: 审计日志查询
+- `settings`: 控制台设置
+
+代码入口：
+
+- `src/app/router/moduleRegistry.tsx`: 当前模块 registry
+- `src/shared/api/platformClient.ts`: Platform API client
+- `src/shared/api/menuClient.ts`: Menu ops API client
+- `src/shared/api/http.ts`: 统一 token / organization header / API error handling
 
 ## 技术栈
 

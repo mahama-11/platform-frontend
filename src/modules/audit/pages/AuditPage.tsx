@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Activity, AlertTriangle, Copy, Database, ExternalLink, RefreshCw, Search, X } from 'lucide-react'
 
+import { RequestDiagnosticsPanel } from '@/modules/audit/components/RequestDiagnosticsPanel'
 import { platformClient } from '@/shared/api/platformClient'
 import { env } from '@/shared/config/env'
 import { PageHeader } from '@/shared/ui/PageHeader'
@@ -40,7 +41,7 @@ const investigationSteps = [
   },
   {
     title: '3. Pivot to traces/logs',
-    description: 'Use trace_id for stdout request logs now; enable Grafana/Tempo deep links when tracing backend is deployed.',
+    description: 'Use trace_id for request logs now; enable vendor-neutral trace deep links when tracing backend is deployed.',
     icon: Activity,
   },
 ]
@@ -282,11 +283,10 @@ export function AuditPage() {
   const selectedLogUrl = buildLogExplorerUrl({ requestID: selectedLog?.request_id, traceID: selectedLog?.trace_id })
   const diagnosticLogUrl = buildLogExplorerUrl({ requestID: diagnosticRequestID.trim(), traceID: diagnosticTraceID.trim() })
   const diagnosticTraceUrl = buildTraceExplorerUrl(diagnosticTraceID.trim())
-  const diagnosticLogQuery = diagnosticRequestID.trim()
-    ? `{env="dev"} | json | request_id="${diagnosticRequestID.trim()}"`
-    : diagnosticTraceID.trim()
-      ? `{env="dev"} | json | trace_id="${diagnosticTraceID.trim()}"`
-      : '{env="dev"} | json | status >= 400'
+  const diagnosticSearchKey = [
+    diagnosticRequestID.trim() ? `request_id=${diagnosticRequestID.trim()}` : '',
+    diagnosticTraceID.trim() ? `trace_id=${diagnosticTraceID.trim()}` : '',
+  ].filter(Boolean).join(' ')
 
   const goToOffset = (offset: number) => {
     const next = new URLSearchParams(searchParams)
@@ -340,14 +340,14 @@ export function AuditPage() {
           })}
         </div>
         <p className="mt-4 rounded-lg border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-          Log guidance: raw request logs are system-wide, not audit-only. Copy <span className="font-mono">X-Request-ID</span> from Browser DevTools → Network, an API response header, or an error response body, then search logs by <span className="font-mono">request_id</span>. {env.logExplorerUrl ? 'Log explorer links are enabled for request-level troubleshooting. ' : 'Set VITE_LOG_EXPLORER_URL after Loki / ELK / ClickHouse is available to enable one-click log search. '}
-          {env.traceBackendEnabled ? 'Trace backend links are enabled for this console.' : 'Trace IDs are present in logs, but Tempo / Jaeger span search is not enabled in this environment yet.'}
+          Log guidance: request logs are system-wide, not audit-only. Copy <span className="font-mono">X-Request-ID</span> from Browser DevTools → Network, an API response header, or an error response body, then search logs by <span className="font-mono">request_id</span>. {env.logExplorerUrl ? 'Log explorer links are enabled for request-level troubleshooting. ' : 'Set VITE_LOG_EXPLORER_URL after a log search backend is available to enable one-click log search. '}
+          {env.traceBackendEnabled ? 'Trace backend links are enabled for this console.' : 'Trace IDs are present in logs, but trace span search is not enabled in this environment yet.'}
         </p>
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--bg)] p-4" data-testid="system-log-search-panel">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-semibold text-white">System log search</p>
-              <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Paste any request_id from API headers/body or DevTools Network. This searches raw Platform/Ecommerce backend stdout logs, even when there is no audit row.</p>
+              <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Paste any request_id from API headers/body or DevTools Network. This searches raw Platform/product backend stdout logs, even when there is no audit row.</p>
             </div>
             <span className={`rounded-full px-3 py-1 text-xs font-medium ${env.traceBackendEnabled ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-200'}`}>
               {env.traceBackendEnabled ? 'Trace backend enabled' : 'Trace backend not enabled'}
@@ -364,37 +364,18 @@ export function AuditPage() {
             </label>
           </div>
           <div className="mt-3 rounded-lg border border-[var(--border)] bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Generated log query</p>
-            <code className="mt-1 block break-all font-mono text-sm text-sky-200">{diagnosticLogQuery}</code>
+            <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Generated search key</p>
+            <code className="mt-1 block break-all font-mono text-sm text-sky-200">{diagnosticSearchKey || 'Paste a request_id or trace_id to generate a search key.'}</code>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => copyText(diagnosticRequestID.trim())} disabled={!diagnosticRequestID.trim()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] hover:border-[var(--border-strong)] disabled:cursor-not-allowed disabled:opacity-40"><Copy className="h-4 w-4" />Copy request_id</button>
             <button type="button" onClick={() => runDiagnostics()} disabled={!diagnosticRequestID.trim() || diagnosticsLoading} className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/30 px-3 py-2 text-sm text-emerald-100 hover:bg-emerald-300/10 disabled:cursor-not-allowed disabled:opacity-40"><Activity className={`h-4 w-4 ${diagnosticsLoading ? 'animate-pulse' : ''}`} />Run diagnostics</button>
-            <button type="button" onClick={() => copyText(diagnosticLogQuery)} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] hover:border-[var(--border-strong)]"><Copy className="h-4 w-4" />Copy query</button>
+            <button type="button" onClick={() => copyText(diagnosticSearchKey)} disabled={!diagnosticSearchKey} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] hover:border-[var(--border-strong)] disabled:cursor-not-allowed disabled:opacity-40"><Copy className="h-4 w-4" />Copy search key</button>
             {diagnosticLogUrl ? <a href={diagnosticLogUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open logs</a> : null}
             {diagnosticTraceUrl ? <a href={diagnosticTraceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/30 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"><ExternalLink className="h-4 w-4" />Open trace</a> : null}
           </div>
           {diagnosticsError ? <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{diagnosticsError}</div> : null}
-          {diagnostics ? (
-            <div className="mt-4 grid gap-3 lg:grid-cols-3" data-testid="request-diagnostics-summary">
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-4">
-                <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Log summary</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{diagnostics.log_summary.total_lines}</p>
-                <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{diagnostics.log_summary.services.join(', ') || 'No services'}</p>
-              </div>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-4">
-                <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Trace summary</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{diagnostics.trace_summary.span_count}</p>
-                <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{diagnostics.trace_id || 'No trace_id'}</p>
-              </div>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-4">
-                <p className="text-xs uppercase tracking-wide text-[var(--text-soft)]">Findings</p>
-                <div className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
-                  {diagnostics.findings.length ? diagnostics.findings.slice(0, 3).map(item => <p key={item.code} className="truncate"><span className={item.severity === 'error' ? 'text-rose-300' : item.severity === 'warning' ? 'text-amber-200' : 'text-sky-200'}>{item.code}</span> · {item.message}</p>) : <p>No findings.</p>}
-                </div>
-              </div>
-            </div>
-          ) : null}
+          {diagnostics ? <RequestDiagnosticsPanel result={diagnostics} /> : null}
         </div>
         <p className="mt-3 flex gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />

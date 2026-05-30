@@ -522,11 +522,49 @@ export interface RequestDiagnosticsResult {
   log_query?: string
   log_summary: DiagnosticsLogSummary
   trace_summary: DiagnosticsTraceSummary
+  operator_summary?: DiagnosticsOperatorSummary
   findings: DiagnosticsFinding[]
   log_lines?: DiagnosticsLogLine[]
   spans?: DiagnosticsSpanSummary[]
   external_urls?: Record<string, string>
   diagnostics_enabled: boolean
+}
+
+export interface DiagnosticsOperatorSummary {
+  request_path: DiagnosticsRequestPathStep[]
+  participating_services: string[]
+  business_stages: DiagnosticsBusinessStageSummary[]
+  failure?: DiagnosticsFailureSummary
+  likely_cause: string
+  next_steps: string[]
+}
+
+export interface DiagnosticsRequestPathStep {
+  timestamp?: string
+  service?: string
+  operation?: string
+  route?: string
+  status?: number
+  outcome?: 'ok' | 'warning' | 'failed' | string
+  error_code?: string
+}
+
+export interface DiagnosticsBusinessStageSummary {
+  name: string
+  status: 'ok' | 'warning' | 'failed' | string
+  service?: string
+  operation?: string
+  error_code?: string
+}
+
+export interface DiagnosticsFailureSummary {
+  category: string
+  stage?: string
+  service?: string
+  operation?: string
+  status?: number
+  error_code?: string
+  message?: string
 }
 
 export interface DiagnosticsLogSummary {
