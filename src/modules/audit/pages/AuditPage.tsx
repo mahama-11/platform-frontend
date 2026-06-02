@@ -105,7 +105,7 @@ function buildTraceExplorerUrl(traceID?: string) {
 
 function buildLogExplorerUrl(input: { requestID?: string; traceID?: string }) {
   if (!env.logExplorerUrl) return ''
-  let url = env.logExplorerUrl
+  const url = env.logExplorerUrl
   const requestID = input.requestID || ''
   const traceID = input.traceID || ''
   if (url.includes('{request_id}') || url.includes('{trace_id}') || url.includes('%7Brequest_id%7D') || url.includes('%7Btrace_id%7D')) {
