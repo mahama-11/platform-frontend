@@ -31,7 +31,7 @@ export default {
     organizations: '组织中心',
     catalog: '商品与素材',
     billing: '计费与结算',
-    audit: '审计与风控',
+    audit: '审计与诊断',
     accessCenter: '权限中心',
     settings: '系统设置',
   },
@@ -550,8 +550,8 @@ export default {
     },
   },
   audit: {
-    title: '审计与风控',
-    description: '查看审计轨迹、系统变更、风险事件和敏感操作。',
+    title: '审计与诊断',
+    description: '按 request_id / trace_id 排查平台审计事实、系统变更和敏感操作。'
   },
   accessCenter: {
     title: '权限中心',

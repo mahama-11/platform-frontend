@@ -31,7 +31,7 @@ export default {
     organizations: 'Organization Center',
     catalog: 'Catalog & Assets',
     billing: 'Billing & Settlement',
-    audit: 'Audit & Risk',
+    audit: 'Audit & Diagnostics',
     accessCenter: 'Access Center',
     settings: 'System Settings',
   },
@@ -550,8 +550,8 @@ export default {
     },
   },
   audit: {
-    title: 'Audit & Risk',
-    description: 'Search audit trails, system changes, risk signals and sensitive operator actions.',
+    title: 'Audit & Diagnostics',
+    description: 'Investigate platform audit facts, system changes and sensitive operations by request_id / trace_id.'
   },
   accessCenter: {
     title: 'Access Center',

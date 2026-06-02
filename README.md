@@ -8,14 +8,23 @@
 
 - `auth`: 登录入口与会话恢复
 - `dashboard`: 平台总览页
-- `organizations`: 组织视角切换与列表
-- `access-center`: 访问控制与权限视图
-- `audit`: 审计日志查询
-- `billing`: charge session / settlement / discount 运营排障页
-- `catalog`: product / sku / package / billable item / rate card / asset / policy 管理
-- `runtime`: runtime job 与 attempt 追踪
-- `template-ops`: 平台模板运营中心
+- `runtime`: runtime job、provider attempt 与 charge session 追踪
+- `template-ops`: 平台模板运营中心，含 catalog、sync、CSV import/export、asset binding、publish
 - `menu-ops`: Menu 业务历史作业与资产库联调页
+- `merchants`: 商户/主体运营入口
+- `catalog`: product / sku / package / billable item / rate card / offering 管理
+- `billing`: wallet / controls / metering / settlement / discount / charge session 运营排障页
+- `organizations`: 组织、用户、成员运营管理
+- `access-center`: 访问控制、权限、角色视图
+- `audit`: 审计日志查询
+- `settings`: 控制台设置
+
+代码入口：
+
+- `src/app/router/moduleRegistry.tsx`: 当前模块 registry
+- `src/shared/api/platformClient.ts`: Platform API client
+- `src/shared/api/menuClient.ts`: Menu ops API client
+- `src/shared/api/http.ts`: 统一 token / organization header / API error handling
 
 ## 技术栈
 
@@ -52,3 +61,15 @@ Cloud dev / promote 的固定入口在 workspace 级 runbook：`../tools/dev/REA
 - 面向用户可见的商业状态、资产名、事件名、价格口径统一通过前端 i18n helper 映射，不直接裸露底层 code。
 - 价格相关字段统一按最小货币单位存储与传输；界面展示会同时给出可读金额与原始最小单位说明。
 - `dist/` 与 `node_modules/` 不纳入仓库。
+
+## 可观测入口
+
+审计诊断页 `/audit` 以 Platform 后端 `platform_audit_logs` 为业务事实入口，并支持跳转到外部日志/链路系统。注意：日志查询并不依赖审计表；任意 Platform/Ecommerce API 请求都应从响应头 `X-Request-ID` 或 JSON 响应体 `request_id` 取 ID，再到外部日志系统查 raw stdout 日志。`/audit` 只是已审计业务动作的一个入口。
+
+- `VITE_LOG_EXPLORER_URL`: vendor-neutral 日志查询入口，可指向 Grafana Explore(Loki)、ELK/Kibana、ClickHouse 查询页或商业日志平台。支持 `{request_id}` / `{trace_id}` 占位符；若不含占位符，会自动追加 `request_id` 与 `trace_id` query 参数。React 代码只负责模板替换，不写死 Loki/LogQL。
+- `VITE_TRACE_EXPLORER_URL`: Trace 查询入口，建议指向 Grafana Tempo 或 Jaeger。支持 `{trace_id}` 占位符；若不含占位符，会自动追加 `trace_id` query 参数。
+- `VITE_TRACE_BACKEND_ENABLED`: Trace 后端开关，默认 `false`。只有 Tempo/Jaeger/OTel Collector 链路真实可查时才设为 `true`；否则页面只展示 trace_id 作为日志关联字段，不显示可点击的 trace 跳转。
+
+页面内的 **System log search** 面板用于非审计场景：把 DevTools Network、API header `X-Request-ID` 或错误响应体里的 `request_id` 粘进去，即可生成外部日志查询链接。
+
+边界：业务 DB 只保存审计事实；高频 access/stdout 日志应进入日志平台，不应写入 `platform_audit_logs`。

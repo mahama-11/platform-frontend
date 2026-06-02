@@ -514,3 +514,99 @@ export interface InternalAccessDoc {
   idempotency: string[]
   retry_rules: string[]
 }
+
+
+export interface RequestDiagnosticsResult {
+  request_id: string
+  trace_id?: string
+  log_query?: string
+  log_summary: DiagnosticsLogSummary
+  trace_summary: DiagnosticsTraceSummary
+  operator_summary?: DiagnosticsOperatorSummary
+  findings: DiagnosticsFinding[]
+  log_lines?: DiagnosticsLogLine[]
+  spans?: DiagnosticsSpanSummary[]
+  external_urls?: Record<string, string>
+  diagnostics_enabled: boolean
+}
+
+export interface DiagnosticsOperatorSummary {
+  request_path: DiagnosticsRequestPathStep[]
+  participating_services: string[]
+  business_stages: DiagnosticsBusinessStageSummary[]
+  failure?: DiagnosticsFailureSummary
+  likely_cause: string
+  next_steps: string[]
+}
+
+export interface DiagnosticsRequestPathStep {
+  timestamp?: string
+  service?: string
+  operation?: string
+  route?: string
+  status?: number
+  outcome?: 'ok' | 'warning' | 'failed' | string
+  error_code?: string
+}
+
+export interface DiagnosticsBusinessStageSummary {
+  name: string
+  status: 'ok' | 'warning' | 'failed' | string
+  service?: string
+  operation?: string
+  error_code?: string
+}
+
+export interface DiagnosticsFailureSummary {
+  category: string
+  stage?: string
+  service?: string
+  operation?: string
+  status?: number
+  error_code?: string
+  message?: string
+}
+
+export interface DiagnosticsLogSummary {
+  total_lines: number
+  services: string[]
+  routes: string[]
+  statuses: number[]
+  error_codes: string[]
+  first_seen_at?: string
+  last_seen_at?: string
+}
+
+export interface DiagnosticsTraceSummary {
+  found: boolean
+  span_count: number
+  service_names: string[]
+  root_operation?: string
+  duration_ms?: number
+  error_span_count: number
+}
+
+export interface DiagnosticsFinding {
+  severity: 'info' | 'warning' | 'error'
+  code: string
+  message: string
+}
+
+export interface DiagnosticsLogLine {
+  timestamp?: string
+  service?: string
+  level?: string
+  message?: string
+  fields?: Record<string, unknown>
+}
+
+export interface DiagnosticsSpanSummary {
+  trace_id: string
+  span_id: string
+  parent_span_id?: string
+  service?: string
+  name: string
+  duration_ms?: number
+  status?: string
+  attributes?: Record<string, string>
+}

@@ -23,6 +23,7 @@ RUN rm -rf ./*
 COPY --from=builder /app/dist .
 
 COPY deploy/platform-console-nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx.conf /etc/nginx/nginx.conf
 COPY deploy/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
