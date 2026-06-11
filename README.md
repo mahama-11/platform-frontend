@@ -19,6 +19,10 @@
 - `audit`: 审计日志查询
 - `settings`: 控制台设置
 
+关键设计文档：
+
+- `docs/PLATFORM_CONSOLE_FUNCTION_SUPPORT_BLUEPRINT.md`: Platform 后端能力面、当前前端覆盖/缺口、Console 信息架构与 SelfCheck 门禁蓝图。
+
 代码入口：
 
 - `src/app/router/moduleRegistry.tsx`: 当前模块 registry

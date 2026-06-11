@@ -12,7 +12,7 @@ import type {
   SwitchOrgResult,
   UserProfile,
 } from '@/shared/types/auth'
-import type { AllowancePolicyRecord, AssetDefinitionRecord, AssetRecord, AuditLogRecord, AuditLogsResult, BatchUploadAssetsResult, BillableItemRecord, ChargeSession, ChargeSessionsResult, DiscountLedger, ErrorCodesDoc, InternalAccessDoc, OfferingsView, PackageCapabilityPolicyRecord, PackageRecord, PreparedAssetImportResult, PreparedTemplateOpsImportBundle, ProductRecord, QuotaGrantPolicyRecord, RateCardRecord, RequestDiagnosticsResult, RuntimeJobDetail, RuntimeJobsResult, SettlementRecord, SKURecord, TemplateAssetBindingsResult, TemplateOpsCatalogDetail, TemplateOpsCatalogResult, TemplateOpsImportPreviewResult, WalletSummary } from '@/shared/types/platform'
+import type { AllowancePolicyRecord, AssetDefinitionRecord, AssetRecord, AuditLogRecord, AuditLogsResult, BatchUploadAssetsResult, BillableItemRecord, BillingProfileRecord, BillingProfilesResult, ChargeSession, ChargeSessionsResult, CommercialEntitiesResult, CommercialEntityRecord, DiscountLedger, ErrorCodesDoc, InternalAccessDoc, OfferingsView, PackageCapabilityPolicyRecord, PackageRecord, PreparedAssetImportResult, PreparedTemplateOpsImportBundle, ProductRecord, QuotaGrantPolicyRecord, RateCardRecord, RequestDiagnosticsResult, ResolveRouteResult, RoutingPoliciesResult, RoutingPolicyRecord, RuntimeJobDetail, RuntimeJobsResult, SettlementRecord, SKURecord, TemplateAssetBindingsResult, TemplateOpsCatalogDetail, TemplateOpsCatalogResult, TemplateOpsImportPreviewResult, WalletSummary } from '@/shared/types/platform'
 
 export const platformClient = {
   login: (email: string, password: string) =>
@@ -86,6 +86,15 @@ export const platformClient = {
   },
   catalogProducts: () => request<{ items: ProductRecord[] }>('/catalog/products'),
   catalogOfferings: (productCode: string) => request<OfferingsView>(`/catalog/offerings?product_code=${encodeURIComponent(productCode)}`),
+  commercialEntities: () => request<CommercialEntitiesResult>('/commercial/entities'),
+  createCommercialEntity: (payload: Record<string, unknown>) => request<CommercialEntityRecord>('/commercial/entities', { method: 'POST', body: JSON.stringify(payload) }),
+  billingProfiles: (productId = '') => request<BillingProfilesResult>(`/commercial/billing-profiles${productId ? `?product_id=${encodeURIComponent(productId)}` : ''}`),
+  createBillingProfile: (payload: Record<string, unknown>) => request<BillingProfileRecord>('/commercial/billing-profiles', { method: 'POST', body: JSON.stringify(payload) }),
+  routingPolicies: (billingProfileId = '') => request<RoutingPoliciesResult>(`/commercial/routing-policies${billingProfileId ? `?billing_profile_id=${encodeURIComponent(billingProfileId)}` : ''}`),
+  createRoutingPolicy: (payload: Record<string, unknown>) => request<RoutingPolicyRecord>('/commercial/routing-policies', { method: 'POST', body: JSON.stringify(payload) }),
+  updateRoutingPolicy: (routingPolicyId: string, payload: Record<string, unknown>) => request<RoutingPolicyRecord>(`/commercial/routing-policies/${encodeURIComponent(routingPolicyId)}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteRoutingPolicy: (routingPolicyId: string) => request<{ deleted: boolean; id: string }>(`/commercial/routing-policies/${encodeURIComponent(routingPolicyId)}`, { method: 'DELETE' }),
+  resolveCommercialRoute: (payload: Record<string, unknown>) => request<ResolveRouteResult>('/commercial/route/resolve', { method: 'POST', body: JSON.stringify(payload) }),
   templateOpsCatalog: (input: { productCode?: string; query?: string; locale?: string; limit?: number; offset?: number } = {}) => {
     const params = new URLSearchParams()
     if (input.productCode) params.set('product_code', input.productCode)

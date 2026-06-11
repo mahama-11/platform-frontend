@@ -29,6 +29,74 @@ export interface ProductRecord {
   updated_at: string
 }
 
+export interface CommercialEntityRecord {
+  id: string
+  code: string
+  name: string
+  entity_type: string
+  country_code: string
+  currency: string
+  tax_profile: string
+  status: string
+  metadata: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CommercialEntitiesResult {
+  items: CommercialEntityRecord[]
+}
+
+export interface BillingProfileRecord {
+  id: string
+  code: string
+  product_id: string
+  commercial_entity_id: string
+  default_merchant_account_id: string
+  default_settlement_account_id: string
+  region_scope: string
+  currency: string
+  pricing_strategy: string
+  tax_strategy: string
+  status: string
+  metadata: string
+  created_at: string
+  updated_at: string
+}
+
+export interface BillingProfilesResult {
+  items: BillingProfileRecord[]
+}
+
+export interface RoutingPolicyRecord {
+  id: string
+  billing_profile_id: string
+  priority: number
+  match_type: string
+  match_config: string
+  target_merchant_account_id: string
+  target_settlement_account_id: string
+  status: string
+  metadata: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RoutingPoliciesResult {
+  items: RoutingPolicyRecord[]
+}
+
+export interface ResolveRouteResult {
+  billing_profile_id: string
+  billing_profile_code: string
+  commercial_entity_id: string
+  merchant_account_id: string
+  settlement_account_id: string
+  routing_policy_id?: string
+  resolution_reason: string
+  route_snapshot: string
+}
+
 export interface SKURecord {
   id: string
   product_id: string
