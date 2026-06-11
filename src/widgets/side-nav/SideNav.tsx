@@ -6,7 +6,14 @@ import { useShellStore } from '@/app/store/shellStore'
 import { cn } from '@/shared/lib/cn'
 import type { ConsoleNavGroup, ConsoleNavItem } from '@/shared/types/module'
 
-const groupOrder: ConsoleNavGroup[] = ['overview', 'operations', 'governance']
+const groupOrder: ConsoleNavGroup[] = ['workbench', 'overview', 'operations', 'governance']
+
+const groupLabelKey: Record<ConsoleNavGroup, string> = {
+  workbench: 'navGroups.workbench',
+  overview: 'navGroups.overview',
+  operations: 'navGroups.operations',
+  governance: 'navGroups.governance',
+}
 
 export function SideNav({
   navItems,
@@ -69,7 +76,7 @@ export function SideNav({
           {grouped.map(({ group, items }) => (
             <div key={group}>
               <p className={cn('mb-3 px-3 text-[11px] uppercase tracking-wider font-semibold text-[var(--text-soft)]', desktopNavCollapsed && 'lg:hidden')}>
-                {group}
+                {t(groupLabelKey[group])}
               </p>
               <div className="space-y-1">
                 {items.map(item => {
