@@ -7,6 +7,7 @@ import { dashboardModule } from '@/modules/dashboard'
 import { menuOpsModule } from '@/modules/menu-ops'
 import { merchantsModule } from '@/modules/merchants'
 import { organizationsModule } from '@/modules/organizations'
+import { operatorWorkbenchModule } from '@/modules/operator-workbench'
 import { runtimeModule } from '@/modules/runtime'
 import { settingsModule } from '@/modules/settings'
 import { templateOpsModule } from '@/modules/template-ops'
@@ -15,6 +16,7 @@ import type { PlatformModuleManifest } from '@/shared/types/module'
 export const publicModules: PlatformModuleManifest[] = [authModule]
 
 export const privateModules: PlatformModuleManifest[] = [
+  operatorWorkbenchModule,
   dashboardModule,
   runtimeModule,
   templateOpsModule,

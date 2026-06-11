@@ -22,7 +22,14 @@ export default {
     apply: 'Apply',
     refresh: 'Refresh',
   },
+  navGroups: {
+    workbench: 'Workbench',
+    overview: 'Overview',
+    operations: 'Operations',
+    governance: 'Governance',
+  },
   nav: {
+    operatorWorkbench: 'Operator Workbench',
     overview: 'Overview',
     runtime: 'Runtime Jobs',
     templateOps: 'Template Ops',

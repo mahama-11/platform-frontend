@@ -22,7 +22,14 @@ export default {
     apply: '应用',
     refresh: '刷新',
   },
+  navGroups: {
+    workbench: '工作台',
+    overview: '总览',
+    operations: '运营',
+    governance: '治理',
+  },
   nav: {
+    operatorWorkbench: 'Operator Workbench',
     overview: '总览',
     runtime: '运行时任务',
     templateOps: '模板运营',

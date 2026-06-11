@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import type { RouteObject } from 'react-router-dom'
 
-export type ConsoleNavGroup = 'overview' | 'operations' | 'governance'
+export type ConsoleNavGroup = 'workbench' | 'overview' | 'operations' | 'governance'
 
 export interface ConsoleNavItem {
   key: string
